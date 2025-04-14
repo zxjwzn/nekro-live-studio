@@ -325,7 +325,7 @@ pygame.quit()
 
 ## API文档
 
-详细的API文档请参考[VTubeStudio 面部控制插件 API 文档.md](VTubeStudio 面部控制插件 API 文档.md)文件。
+详细的API文档请参考[VTubeStudio 面部控制插件 API 文档](api.md)文件。
 
 ## 许可证
 
