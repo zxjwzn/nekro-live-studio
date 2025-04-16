@@ -151,6 +151,22 @@ class VTSPluginTester:
                 logger.error(f"设置表情失败: {response.status} - {error_text}")
                 return None
     
+    async def set_animation(self, exp ,fadetime, autostop, stopAfter):
+        data = {
+            "file": exp,
+            "autostop": autostop,
+            "fade_time": fadetime
+        }
+        async with self.session.post(f"{self.api_url}/animation/play", json=data) as response:
+            if response.status == 200:
+                result = await response.json()
+                logger.info(f"设置表情结果: {json.dumps(result, ensure_ascii=False)}")
+                return result
+            else:
+                error_text = await response.text()
+                logger.error(f"设置表情失败: {response.status} - {error_text}")
+
+                return None
     async def run_tests(self):
         """运行所有测试"""
         try:
@@ -170,7 +186,6 @@ class VTSPluginTester:
                 
             # 添加延迟，确保认证状态完全生效
             logger.info("等待3秒，确保认证状态生效...")
-            await asyncio.sleep(3)
             
             # 测试获取参数列表
             parameters_data = await self.get_parameters()
@@ -231,23 +246,25 @@ class VTSPluginTester:
             
             # 如果有表情，测试设置表情
             if expressions:
-                expression_file = expressions[0].get('file')
+                for exp in expressions:
+
+                    expression_file = exp.get('file')
                 
-                # 激活表情
-                result = await self.set_expression(expression_file, True)
-                if not result or not result.get('success'):
-                    logger.error("激活表情失败")
-                
-                # 等待2秒
-                await asyncio.sleep(2)
-                
-                # 停用表情
-                result = await self.set_expression(expression_file, False)
-                if not result or not result.get('success'):
-                    logger.error("停用表情失败")
+                    # 激活表情
+                    result = await self.set_expression(expression_file, True,10000)
+                    if not result or not result.get('success'):
+                        logger.error("激活表情失败")
+                    
+                    # 等待2秒
+                    await asyncio.sleep(0.5)
+                    
+                    # 停用表情
+                    result = await self.set_expression(expression_file, False,10000)
+                    if not result or not result.get('success'):
+                        logger.error("停用表情失败")
             else:
                 logger.warning("没有可用表情，跳过表情设置测试")
-            
+            result = await self.set_animation("打瞌睡.motion3.json",3,True,5)
             logger.info("所有测试完成")
             return True
         except Exception as e:
