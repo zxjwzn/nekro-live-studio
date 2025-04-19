@@ -7,6 +7,8 @@ import time
 import random
 import argparse
 import logging
+# 导入缓动函数
+from easing import ease_in_sine, ease_out_sine
 
 # 配置日志
 logging.basicConfig(
@@ -40,54 +42,110 @@ async def set_parameters(session: aiohttp.ClientSession, api_url: str, parameter
         logger.error(f"设置参数时发生未知错误: {e}")
         return False
 
-async def blink_cycle(session: aiohttp.ClientSession, api_url: str, close_duration: float = 0.08, open_duration: float = 0.08, closed_hold: float = 0.05):
-    """执行一次完整的眨眼周期 (异步)"""
-    steps = 5 # 平滑过渡的步数
+async def get_parameter_values(session: aiohttp.ClientSession, api_url: str, parameter_ids: list[str]) -> dict[str, float]:
+    """从插件API获取指定参数的当前值 (异步)"""
+    endpoint = f"{api_url}/parameters"
+    values = {param_id: 1.0 for param_id in parameter_ids} # 默认值设为1.0 (睁眼)
 
-    # 1. 闭眼
-    logger.debug("开始闭眼")
+    try:
+        async with session.get(endpoint) as response:
+            response.raise_for_status()
+            result = await response.json()
+            if 'parameters' in result:
+                param_map = {p.get('name'): p.get('value', 1.0) for p in result['parameters']}
+                for param_id in parameter_ids:
+                    if param_id in param_map:
+                        values[param_id] = param_map[param_id]
+                    else:
+                         logger.warning(f"在API响应中未找到参数 '{param_id}'，使用默认值 1.0")
+                logger.debug(f"成功获取参数值: {values}")
+            else:
+                logger.warning(f"获取参数响应格式不正确，使用默认值: {result}")
+            return values
+    except aiohttp.ClientResponseError as e:
+        logger.error(f"调用API获取参数时出错 ({endpoint}): HTTP {e.status} - {e.message}")
+        return values
+    except aiohttp.ClientConnectionError as e:
+        logger.error(f"无法连接到API获取参数 ({endpoint}): {e}")
+        return values
+    except asyncio.TimeoutError:
+        logger.error(f"调用API获取参数超时 ({endpoint})")
+        return values
+    except Exception as e:
+        logger.error(f"获取参数值时发生未知错误: {e}")
+        return values
+
+async def blink_cycle(session: aiohttp.ClientSession, api_url: str, close_duration: float = 0.08, open_duration: float = 0.08, closed_hold: float = 0.05):
+    """执行一次带有缓动效果的完整眨眼周期 (异步)，结束后保持睁眼"""
+    steps = 10 # 增加步数以获得更平滑的缓动效果
+
+    # 获取当前眼睛状态 (仅用于日志记录)
+    logger.debug("获取当前眼睛参数值...")
+    current_eye_values = await get_parameter_values(session, api_url, ["EyeOpenLeft", "EyeOpenRight"])
+    start_left = current_eye_values.get("EyeOpenLeft", 1.0)
+    start_right = current_eye_values.get("EyeOpenRight", 1.0)
+    logger.debug(f"当前眼睛状态: Left={start_left:.2f}, Right={start_right:.2f}")
+
+    # --- 眨眼动画（始终基于 1.0 -> 0.0 -> 1.0 的范围） ---
+
+    # 1. 闭眼 (使用 ease_in_sine 从 1.0 过渡到 0.0)
+    logger.debug("开始闭眼 (缓动 1.0 -> 0.0)")
     for i in range(steps + 1):
-        value = 1.0 - (i / steps)
+        t = i / steps # 时间进度 (0 到 1)
+        # ease_in_sine(t) 从 0 增加到 1
+        # (1 - ease_in_sine(t)) 从 1 减少到 0
+        value = 1.0 * (1.0 - ease_out_sine(t))
+
         parameters = [
             {"id": "EyeOpenLeft", "value": value},
             {"id": "EyeOpenRight", "value": value}
         ]
-        if not await set_parameters(session, api_url, parameters): return # 如果失败则中断
+        if not await set_parameters(session, api_url, parameters): return
         await asyncio.sleep(close_duration / steps)
+
+    # 确保完全闭合
+    parameters = [
+        {"id": "EyeOpenLeft", "value": 0.0},
+        {"id": "EyeOpenRight", "value": 0.0},
+    ]
+    await set_parameters(session, api_url, parameters)
 
     # 2. 保持闭眼
     logger.debug("保持闭眼")
     await asyncio.sleep(closed_hold)
 
-    # 3. 睁眼
-    logger.debug("开始睁眼")
+    # 3. 睁眼 (使用 ease_out_sine 从 0 过渡回初始值)
+    logger.debug("开始睁眼 (缓动 0.0 -> 1.0)")
     for i in range(steps + 1):
-        value = i / steps
+        t = i / steps # 时间进度 (0 到 1)
+        # ease_out_sine(t) 从 0 增加到 1
+        value = 1.0 * ease_in_sine(t)
+
         parameters = [
             {"id": "EyeOpenLeft", "value": value},
             {"id": "EyeOpenRight", "value": value}
         ]
-        if not await set_parameters(session, api_url, parameters): return # 如果失败则中断
+        if not await set_parameters(session, api_url, parameters): return
         await asyncio.sleep(open_duration / steps)
-    
-    # 确保眼睛完全睁开
+
+    # --- 动画结束，确保眼睛是睁开状态 (1.0) ---
+    logger.debug(f"眨眼动画完成，确保眼睛保持睁开")
     parameters = [
-        {"id": "EyeOpenLeft", "value": 1.0},
-        {"id": "EyeOpenRight", "value": 1.0}
+        {"id": "EyeOpenLeft", "value": 1.0}, # 强制设为 1.0
+        {"id": "EyeOpenRight", "value": 1.0} # 强制设为 1.0
     ]
     await set_parameters(session, api_url, parameters)
-    logger.debug("眨眼完成")
-
+    logger.debug("眼睛状态已设置为睁开")
 
 async def main():
     parser = argparse.ArgumentParser(description='通过VTS插件API控制眨眼 (异步)')
     parser.add_argument('--api-url', type=str, default='http://localhost:8080', help='VTS插件API的URL')
     parser.add_argument('--min-interval', type=float, default=2.0, help='两次眨眼之间的最小间隔时间（秒）')
-    parser.add_argument('--max-interval', type=float, default=6.0, help='两次眨眼之间的最大间隔时间（秒）')
-    parser.add_argument('--close-duration', type=float, default=0.08, help='闭眼动画持续时间（秒）')
-    parser.add_argument('--open-duration', type=float, default=0.08, help='睁眼动画持续时间（秒）')
-    parser.add_argument('--closed-hold', type=float, default=0.05, help='眼睛闭合状态的保持时间（秒）')
-    parser.add_argument('--timeout', type=float, default=5.0, help='API请求超时时间（秒）')
+    parser.add_argument('--max-interval', type=float, default=4.0, help='两次眨眼之间的最大间隔时间（秒）')
+    parser.add_argument('--close-duration', type=float, default=0.12, help='闭眼动画持续时间（秒）')
+    parser.add_argument('--open-duration', type=float, default=0.24, help='睁眼动画持续时间（秒）')
+    parser.add_argument('--closed-hold', type=float, default=0.03, help='眼睛闭合状态的保持时间（秒）')
+    parser.add_argument('--timeout', type=float, default=1.0, help='API请求超时时间（秒）')
     parser.add_argument('--debug', action='store_true', help='启用调试模式')
     args = parser.parse_args()
 
@@ -125,8 +183,8 @@ async def main():
         except Exception as e:
             logger.error(f"发生未处理的异常: {e}")
         finally:
-            # 尝试将眼睛设置为睁开状态
-            logger.info("尝试将眼睛恢复为睁开状态...")
+            # 尝试将眼睛设置为睁开状态 (恢复到 1.0)
+            logger.info("尝试将眼睛恢复为完全睁开状态...")
             await set_parameters(session, args.api_url, [
                 {"id": "EyeOpenLeft", "value": 1.0},
                 {"id": "EyeOpenRight", "value": 1.0}

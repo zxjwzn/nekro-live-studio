@@ -42,6 +42,7 @@ class VTSPlugin:
         self.plugin_id = ""
         self.auth_token = None
         self.ws_connected = False
+        self.ws_lock = asyncio.Lock()
         
         # 模型信息
         self.model_loaded = False
@@ -60,22 +61,12 @@ class VTSPlugin:
         
         # 参数映射（Live2D参数名到跟踪参数名）
         self.parameter_mapping = {
-            # 常见的Live2D参数到跟踪参数的映射
-            "ParamAngleX": "FaceAngleX",
-            "ParamAngleY": "FaceAngleY",
-            "ParamAngleZ": "FaceAngleZ",
-            "ParamEyeLOpen": "EyeOpenLeft",
-            "ParamEyeROpen": "EyeOpenRight",
-            "ParamEyeBallX": "EyeLeftX",  # 可能需要调整
-            "ParamEyeBallY": "EyeLeftY",  # 可能需要调整
-            "ParamMouthOpenY": "MouthOpenY",
-            "ParamMouthForm": "MouthSmile",
-            "ParamBrowLY": "BrowLeftY",
-            "ParamBrowRY": "BrowRightY",
-            # 可以根据需要添加更多映射
+            
         }
-        
-        # 反向映射（跟踪参数名到Live2D参数名）
+        # 清理掉值为 None 的映射
+        self.parameter_mapping = {k: v for k, v in self.parameter_mapping.items() if v is not None}
+
+        # 反向映射（跟踪参数名到Live2D参数名） - 确保在 parameter_mapping 更新后重新生成
         self.reverse_mapping = {v: k for k, v in self.parameter_mapping.items()}
     
     async def connect(self):
@@ -102,41 +93,43 @@ class VTSPlugin:
         Returns:
             响应数据
         """
-        try:
-            if not self.ws or not self.ws_connected:
-                logger.error("未连接到VTubeStudio")
-                return None
-                
-            request_id = str(uuid.uuid4())
-            request = {
-                "apiName": "VTubeStudioPublicAPI",
-                "apiVersion": "1.0",
-                "requestID": request_id,
-                "messageType": request_type
-            }
-            
-            if data:
-                request["data"] = data
-                
-            request_json = json.dumps(request)
-            logger.debug(f"发送请求: {request_json}")
-            await self.ws.send(request_json)
-            
-            response_text = await self.ws.recv()
-            logger.debug(f"收到响应: {response_text}")
-            
+        async with self.ws_lock:
             try:
-                response = json.loads(response_text)
-                return response
-            except json.JSONDecodeError as e:
-                logger.error(f"解析响应JSON失败: {e}")
-                logger.error(f"原始响应: {response_text}")
+                if not self.ws or not self.ws_connected:
+                    logger.error("未连接到VTubeStudio")
+                    return None
+                    
+                request_id = str(uuid.uuid4())
+                request = {
+                    "apiName": "VTubeStudioPublicAPI",
+                    "apiVersion": "1.0",
+                    "requestID": request_id,
+                    "messageType": request_type
+                }
+                
+                if data:
+                    request["data"] = data
+                    
+                request_json = json.dumps(request)
+                logger.debug(f"发送请求: {request_json}")
+                await self.ws.send(request_json)
+                
+                response_text = await self.ws.recv()
+                logger.debug(f"收到响应: {response_text}")
+                
+                try:
+                    response = json.loads(response_text)
+                    return response
+                except json.JSONDecodeError as e:
+                    logger.error(f"解析响应JSON失败: {e}")
+                    logger.error(f"原始响应: {response_text}")
+                    return None
+            except Exception as e:
+                logger.error(f"发送请求时出错: {e}")
+                logger.error(traceback.format_exc())
+                if isinstance(e, (websockets.exceptions.ConnectionClosedOK, websockets.exceptions.ConnectionClosedError)):
+                    self.ws_connected = False
                 return None
-        except Exception as e:
-            logger.error(f"发送请求时出错: {e}")
-            logger.error(traceback.format_exc())
-            self.ws_connected = False
-            return None
     
     async def authenticate(self):
         """向VTubeStudio进行身份验证 - 两步认证流程"""
@@ -288,12 +281,14 @@ class VTSPlugin:
             # 确保参数有name字段
             if 'name' in param:
                 self.available_parameters.append(param)
+                logger.info(f"参数{param['name']}")
         
         # 添加Live2D参数（如果不在跟踪参数中）
         tracking_param_names = [p.get('name') for p in self.tracking_parameters]
         for param in self.live2d_parameters:
             # 确保参数有name字段
             if 'name' in param:
+                logger.info(f"参数{param['name']}")
                 # 检查是否已经存在同名参数
                 if param['name'] not in tracking_param_names:
                     # 尝试映射Live2D参数到跟踪参数
@@ -306,40 +301,6 @@ class VTSPlugin:
         logger.info(f"合并后共有 {len(self.available_parameters)} 个可用参数")
         return True
     
-    async def preload_common_parameters(self):
-        """预加载常见参数"""
-        logger.info("预加载常见参数...")
-        self.common_parameters = [
-            {"name": "FaceAngleX", "description": "面部水平旋转", "defaultValue": 0},
-            {"name": "FaceAngleY", "description": "面部垂直旋转", "defaultValue": 0},
-            {"name": "FaceAngleZ", "description": "面部倾斜", "defaultValue": 0},
-            {"name": "MouthSmile", "description": "微笑程度", "defaultValue": 0},
-            {"name": "MouthOpenY", "description": "嘴巴开合程度", "defaultValue": 0},
-            {"name": "EyeOpenLeft", "description": "左眼开合程度", "defaultValue": 1},
-            {"name": "EyeOpenRight", "description": "右眼开合程度", "defaultValue": 1},
-            {"name": "EyeLeftX", "description": "左眼水平位置", "defaultValue": 0},
-            {"name": "EyeLeftY", "description": "左眼垂直位置", "defaultValue": 0},
-            {"name": "EyeRightX", "description": "右眼水平位置", "defaultValue": 0},
-            {"name": "EyeRightY", "description": "右眼垂直位置", "defaultValue": 0},
-            {"name": "BrowLeftY", "description": "左眉毛高度", "defaultValue": 0},
-            {"name": "BrowRightY", "description": "右眉毛高度", "defaultValue": 0},
-            {"name": "TongueOut", "description": "舌头伸出程度", "defaultValue": 0},
-            {"name": "CheekPuff", "description": "脸颊鼓起", "defaultValue": 0},
-            {"name": "MouthX", "description": "嘴巴水平位置", "defaultValue": 0}
-        ]
-        
-        # 将常见参数添加到可用参数列表
-        if not self.available_parameters:
-            self.available_parameters = []
-        
-        # 只添加不存在的参数
-        existing_names = [p.get('name') for p in self.available_parameters]
-        for param in self.common_parameters:
-            if param["name"] not in existing_names:
-                self.available_parameters.append(param)
-        
-        logger.info(f"预加载了 {len(self.common_parameters)} 个常见参数")
-        return True
     
     async def get_available_expressions(self):
         """获取可用表情列表"""
@@ -554,11 +515,6 @@ class VTSPlugin:
                 
                 # 合并参数
                 await self.merge_parameters()
-            
-            # 如果参数列表为空，预加载常见参数
-            if not self.available_parameters:
-                logger.info("参数列表为空，预加载常见参数")
-                await self.preload_common_parameters()
                 
             # 如果模型已加载，获取表情列表
             if self.model_loaded:
@@ -642,10 +598,6 @@ class VTSPlugin:
                         await self.merge_parameters()
                         await self.get_available_expressions()
                         await self.get_items_in_scene()
-                    
-                    # 如果参数列表为空，预加载常见参数
-                    if not self.available_parameters:
-                        await self.preload_common_parameters()
                 
                 # 等待一段时间
                 await asyncio.sleep(30)
@@ -685,11 +637,6 @@ class VTSPlugin:
         if self.model_loaded:
             await self.get_live2d_parameters()
             await self.merge_parameters()
-        
-        # 如果参数列表为空，预加载常见参数
-        if not self.available_parameters:
-            logger.info("参数列表为空，预加载常见参数")
-            await self.preload_common_parameters()
             
         return web.json_response({"parameters": self.available_parameters})
     
