@@ -141,14 +141,17 @@ async def run_tests():
             logger.warning("只有一个可用模型或者找不到不同的模型。")
     elif isinstance(available_models, list) and available_models and original_model_id is None:
         # 如果开始时没有模型，尝试加载第一个可用模型
-        target_model = available_models[0]
-        if isinstance(target_model, dict):
-            target_id = target_model.get("modelID")
-            target_name = target_model.get('modelName')
-            # 确保 target_id 是字符串
-            if isinstance(target_id, str):
-                logger.info(f"尝试加载第一个可用模型: ID={target_id}, 名称={target_name}")
-                await run_test_step(f"加载模型 {target_id}", plugin.load_model(target_id))
+        for models in available_models:
+            if isinstance(models, dict):
+                target_id = models.get("modelID","")
+                target_name = models.get('modelName',"")
+                if target_name == "Pink devil":
+                    # 确保 target_id 是字符串
+                    if isinstance(target_id, str):
+                        logger.info(f"尝试加载第一个可用模型: ID={target_id}, 名称={target_name}")
+                    await run_test_step(f"加载模型 {target_id}", plugin.load_model(target_id))
+                else:
+                    continue
             else:
                 logger.error(f"第一个可用模型 {target_name} 的 ID 无效 (非字符串): {target_id}")
             logger.info("等待模型加载...")
@@ -176,9 +179,9 @@ async def run_tests():
     if isinstance(input_params, list) and any(isinstance(p, dict) and p.get("name") == test_param_name for p in input_params):
         param_details = await run_test_step(f"获取参数值 ({test_param_name})", plugin.get_parameter_value(test_param_name))
         if isinstance(param_details, dict):
-            await run_test_step(f"设置参数值 ({test_param_name}, 模式=add, +5.0)", plugin.set_parameter_value(test_param_name, 5.0, mode="add"))
+            await run_test_step(f"设置参数值 ({test_param_name}, 模式=add, +5.0)", plugin.set_parameter_value(test_param_name, 5.0))
             await asyncio.sleep(1) # 等待参数变化生效
-            await run_test_step(f"设置参数值 ({test_param_name}, 模式=add, -5.0, 恢复)", plugin.set_parameter_value(test_param_name, -5.0, mode="add"))
+            await run_test_step(f"设置参数值 ({test_param_name}, 模式=add, -5.0, 恢复)", plugin.set_parameter_value(test_param_name, -5.0))
             await asyncio.sleep(1) # 等待参数变化生效
         else:
             logger.warning(f"获取参数 {test_param_name} 详情失败。")
