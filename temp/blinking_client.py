@@ -179,7 +179,7 @@ async def main():
         except KeyboardInterrupt:
             logger.info("接收到中断信号，正在关闭...")
         except asyncio.CancelledError:
-             logger.info("任务被取消，正在关闭...")
+            logger.info("任务被取消，正在关闭...")
         except Exception as e:
             logger.error(f"发生未处理的异常: {e}")
         finally:

@@ -249,12 +249,16 @@ class VTSClient:
                             request_id = data["requestID"]
                             future = self.pending_requests.pop(request_id)
                             
-                            # 检查是否有错误
-                            if "errorID" in data and data["errorID"]:
-                                error = APIError(data["errorID"])
-                                future.set_exception(error)
+                            # 检查future是否仍处于可设置结果的状态
+                            if not future.done():
+                                # 检查是否有错误
+                                if "errorID" in data and data["errorID"]:
+                                    error = APIError(data["errorID"])
+                                    future.set_exception(error)
+                                else:
+                                    future.set_result(data)
                             else:
-                                future.set_result(data)
+                                logger.debug(f"跳过对已完成future的结果设置，请求ID: {request_id}")
                         
                         # 检查是否是事件消息
                         elif "messageType" in data and data["messageType"] in self.event_callbacks:

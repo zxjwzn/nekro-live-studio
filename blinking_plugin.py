@@ -11,20 +11,50 @@ from typing import Optional
 
 # 假设 vts_client 包在当前目录下或 Python 路径中
 from vts_client import VTSPlugin, VTSException, APIError, ResponseError, ConnectionError, AuthenticationError
-from easing import ease_out_sine, ease_in_sine
+from easing import ease_out_sine, ease_in_sine, ease_in_out_sine, ease_in_out_quad, ease_in_out_cubic, ease_in_out_elastic, ease_in_out_back, ease_in_out_bounce
 
 # --- 配置 ---
-PLUGIN_NAME = "自动眨眼插件"
+PLUGIN_NAME = "自动眨眼、呼吸与身体摇摆插件"
 PLUGIN_DEVELOPER = "迁移自BlinkingClient"
-DEFAULT_VTS_ENDPOINT = "ws://localhost:8001"
+DEFAULT_VTS_ENDPOINT = "ws://localhost:8002"
 
 # --- 眨眼配置 ---
 MIN_INTERVAL = 2.0  # 两次眨眼之间的最小间隔时间（秒）
 MAX_INTERVAL = 4.0  # 两次眨眼之间的最大间隔时间（秒）
-CLOSE_DURATION = 0.12  # 闭眼动画持续时间（秒）
-OPEN_DURATION = 0.24  # 睁眼动画持续时间（秒）
-CLOSED_HOLD = 0.03  # 眼睛闭合状态的保持时间（秒）
+CLOSE_DURATION = 0.15  # 闭眼动画持续时间（秒）
+OPEN_DURATION = 0.3  # 睁眼动画持续时间（秒）
+CLOSED_HOLD = 0.05  # 眼睛闭合状态的保持时间（秒）
 DEBUG_MODE = False  # 是否启用调试模式
+
+# --- 呼吸配置 ---
+BREATHING_ENABLED = True  # 是否启用呼吸效果
+BREATHING_MIN_VALUE = -3.0  # 呼吸参数最小值（呼气）
+BREATHING_MAX_VALUE = 3.0  # 呼吸参数最大值（吸气）
+BREATHING_INHALE_DURATION = 2.0  # 吸气持续时间（秒）
+BREATHING_EXHALE_DURATION = 2.5  # 呼气持续时间（秒）
+BREATHING_PARAMETER = "FaceAngleY"  # 呼吸控制的参数名
+
+# --- 身体摇摆配置 ---
+BODY_SWING_ENABLED = True  # 是否启用身体摇摆效果
+BODY_SWING_X_MIN_RANGE = -15.0  # 身体左右摇摆最小值范围（左侧）
+BODY_SWING_X_MAX_RANGE = 25.0  # 身体左右摇摆最大值范围（右侧）
+BODY_SWING_Z_MIN_RANGE = -15.0  # 上肢旋转最小值范围
+BODY_SWING_Z_MAX_RANGE = 25.0  # 上肢旋转最大值范围
+BODY_SWING_MIN_DURATION = 2.0  # 摇摆最短持续时间（秒）
+BODY_SWING_MAX_DURATION = 5.0  # 摇摆最长持续时间（秒）
+BODY_SWING_X_PARAMETER = "FaceAngleX"  # 身体左右摇摆控制的参数名
+BODY_SWING_Z_PARAMETER = "FaceAngleZ"  # 上肢旋转控制的参数名
+
+# --- 眼睛跟随摇摆配置 ---
+EYE_FOLLOW_ENABLED = True  # 是否启用眼睛跟随身体摇摆
+EYE_X_MIN_RANGE = -1.0  # 眼睛左右移动最小值（左侧）
+EYE_X_MAX_RANGE = 1.0  # 眼睛左右移动最大值（右侧）
+EYE_Y_MIN_RANGE = -1.0  # 眼睛上下移动最小值（下方）
+EYE_Y_MAX_RANGE = 1.0  # 眼睛上下移动最大值（上方）
+EYE_LEFT_X_PARAMETER = "EyeLeftX"  # 左眼水平移动参数
+EYE_RIGHT_X_PARAMETER = "EyeRightX"  # 右眼水平移动参数
+EYE_LEFT_Y_PARAMETER = "EyeLeftY"  # 左眼垂直移动参数
+EYE_RIGHT_Y_PARAMETER = "EyeRightY"  # 右眼垂直移动参数
 
 # --- 日志设置 ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -36,18 +66,25 @@ if DEBUG_MODE:
 # --- 全局变量 ---
 plugin: Optional[VTSPlugin] = None
 shutdown_event = asyncio.Event()
+breathing_active = False
+body_swing_active = False
+# 当前身体摇摆位置
+current_x_position = 0.0
+current_z_position = 0.0
+# 当前眼睛位置
+current_eye_x_position = 0.0
+current_eye_y_position = 0.0
 
 # --- 核心眨眼逻辑 ---
 async def blink_cycle(plugin: VTSPlugin, close_duration: float = 0.08, open_duration: float = 0.08, closed_hold: float = 0.05):
     """执行一次带有缓动效果的完整眨眼周期 (异步)，结束后保持睁眼"""
-    steps = 10 # 动画步数
 
-    logger.debug("开始眨眼周期")
+    logger.info("开始眨眼周期")
 
     # --- 眨眼动画 ---
     try:
         # 1. 闭眼 (使用 ease_out_sine 从 1.0 过渡到 0.0)
-        logger.debug("开始闭眼 (缓动 1.0 -> 0.0)")
+        logger.info("开始闭眼 (缓动 1.0 -> 0.0)")
         start_time = asyncio.get_event_loop().time()
         end_time = start_time + close_duration
         
@@ -84,11 +121,11 @@ async def blink_cycle(plugin: VTSPlugin, close_duration: float = 0.08, open_dura
             # 即使这里出错，也继续尝试睁眼
 
         # 2. 保持闭眼
-        logger.debug("保持闭眼")
+        logger.info("保持闭眼")
         await asyncio.sleep(closed_hold)
 
         # 3. 睁眼 (使用 ease_in_sine 从 0.0 过渡到 1.0)
-        logger.debug("开始睁眼 (缓动 0.0 -> 1.0)")
+        logger.info("开始睁眼 (缓动 0.0 -> 1.0)")
         start_time = asyncio.get_event_loop().time()
         end_time = start_time + open_duration
         
@@ -116,11 +153,11 @@ async def blink_cycle(plugin: VTSPlugin, close_duration: float = 0.08, open_dura
                 await asyncio.sleep(sleep_time)
 
         # --- 动画结束，确保眼睛是睁开状态 (1.0) ---
-        logger.debug("眨眼动画完成，确保眼睛保持睁开")
+        logger.info("眨眼动画完成，确保眼睛保持睁开")
         try:
             await plugin.set_parameter_value("EyeOpenLeft", 1.0)
             await plugin.set_parameter_value("EyeOpenRight", 1.0)
-            logger.debug("眼睛状态已最终设置为睁开")
+            logger.info("眼睛状态已最终设置为睁开")
         except (APIError, ResponseError, ConnectionError) as e:
             logger.error(f"设置最终睁眼状态时出错: {e}")
 
@@ -128,11 +165,309 @@ async def blink_cycle(plugin: VTSPlugin, close_duration: float = 0.08, open_dura
         logger.error(f"执行眨眼周期时发生意外错误: {e}")
         logger.error(traceback.format_exc())
 
+# --- 呼吸效果逻辑 ---
+async def breathing_cycle(plugin: VTSPlugin):
+    """执行一次完整的呼吸周期（吸气-呼气）"""
+    logger.info("开始呼吸周期")
+    
+    try:
+        # 1. 吸气阶段（从BREATHING_MIN_VALUE增加到BREATHING_MAX_VALUE）
+        logger.info(f"开始吸气 ({BREATHING_MIN_VALUE} -> {BREATHING_MAX_VALUE})")
+        start_time = asyncio.get_event_loop().time()
+        end_time = start_time + BREATHING_INHALE_DURATION
+        
+        while True:
+            current_time = asyncio.get_event_loop().time()
+            if current_time >= end_time:
+                break
+                
+            # 计算进度比例
+            elapsed = current_time - start_time
+            progress = min(1.0, elapsed / BREATHING_INHALE_DURATION)
+            
+            # 使用ease_in_sine计算当前值
+            delta = (BREATHING_MAX_VALUE - BREATHING_MIN_VALUE) * ease_in_out_sine(progress)
+            value = BREATHING_MIN_VALUE + delta
+            
+            # 使用add模式设置参数，不影响其他动作
+            try:
+                await plugin.set_parameter_value(BREATHING_PARAMETER, value, mode="add")
+            except (APIError, ResponseError, ConnectionError) as e:
+                logger.error(f"设置呼吸参数时出错: {e}")
+                return # 出错则中断本次呼吸
+                
+            # 控制更新频率
+            next_step_time = min(current_time + 0.016, end_time)  # 约60fps
+            sleep_time = max(0, next_step_time - asyncio.get_event_loop().time())
+            if sleep_time > 0:
+                await asyncio.sleep(sleep_time)
+        
+        # 2. 呼气阶段（从BREATHING_MAX_VALUE减少到BREATHING_MIN_VALUE）
+        logger.info(f"开始呼气 ({BREATHING_MAX_VALUE} -> {BREATHING_MIN_VALUE})")
+        start_time = asyncio.get_event_loop().time()
+        end_time = start_time + BREATHING_EXHALE_DURATION
+        
+        while True:
+            current_time = asyncio.get_event_loop().time()
+            if current_time >= end_time:
+                break
+                
+            # 计算进度比例
+            elapsed = current_time - start_time
+            progress = min(1.0, elapsed / BREATHING_EXHALE_DURATION)
+            
+            # 使用ease_in_sine计算当前值（反向）
+            delta = (BREATHING_MAX_VALUE - BREATHING_MIN_VALUE) * (1.0 - ease_in_out_sine(progress))
+            value = BREATHING_MIN_VALUE + delta
+            
+            # 使用add模式设置参数
+            try:
+                await plugin.set_parameter_value(BREATHING_PARAMETER, value, mode="add")
+            except (APIError, ResponseError, ConnectionError) as e:
+                logger.error(f"设置呼吸参数时出错: {e}")
+                return # 出错则中断本次呼吸
+                
+            # 控制更新频率
+            next_step_time = min(current_time + 0.016, end_time)  # 约60fps
+            sleep_time = max(0, next_step_time - asyncio.get_event_loop().time())
+            if sleep_time > 0:
+                await asyncio.sleep(sleep_time)
+                
+    except Exception as e:
+        logger.error(f"执行呼吸周期时发生意外错误: {e}")
+        logger.error(traceback.format_exc())
+        
+    return True  # 返回True表示呼吸周期完成
+
+# --- 呼吸任务 ---
+async def breathing_task(plugin: VTSPlugin):
+    """持续运行呼吸效果的任务"""
+    global breathing_active
+    breathing_active = True
+    
+    logger.info("开始呼吸效果...")
+    
+    try:
+        while not shutdown_event.is_set() and breathing_active:
+            # 执行一次完整的呼吸周期
+            success = await breathing_cycle(plugin)
+            if not success:
+                # 如果呼吸周期执行失败，暂停一下再继续
+                await asyncio.sleep(1.0)
+    except asyncio.CancelledError:
+        logger.info("呼吸任务被取消")
+    except Exception as e:
+        logger.error(f"呼吸任务发生错误: {e}")
+        logger.error(traceback.format_exc())
+    finally:
+        breathing_active = False
+        logger.info("呼吸效果已停止")
+
+# --- 身体摇摆效果逻辑 ---
+async def body_swing_cycle(plugin: VTSPlugin):
+    """执行一次随机的身体摇摆周期，从上一个位置直接过渡到下一个位置"""
+    global current_x_position, current_z_position, current_eye_x_position, current_eye_y_position
+    logger.info("开始随机身体摇摆周期")
+    
+    try:
+        # 随机生成本次摇摆的参数
+        # 随机生成摇摆的目标值 - 避免生成与当前位置太接近的值
+        while True:
+            # 随机方向
+            direction = random.choice([-1, 1])  
+            
+            # 随机生成摇摆的强度（幅度）
+            x_intensity = random.uniform(5.0, min(abs(BODY_SWING_X_MIN_RANGE), abs(BODY_SWING_X_MAX_RANGE)))
+            z_intensity = random.uniform(5.0, min(abs(BODY_SWING_Z_MIN_RANGE), abs(BODY_SWING_Z_MAX_RANGE)))
+            
+            # 随机生成新的目标位置
+            new_x_target = direction * x_intensity
+            new_z_target = direction * z_intensity
+            
+            # 确保新位置与当前位置有足够差异
+            x_diff = abs(new_x_target - current_x_position)
+            z_diff = abs(new_z_target - current_z_position)
+            
+            # 修改为更合理的终止条件: 只要位置变化足够大(根据参数实际范围调整)，则接受这个新位置
+            # 原本条件: if x_diff > 10.0 or z_diff > 15.0 是不可能满足的，因为x_intensity最大为10.0，z_intensity最大为15.0
+            if x_diff > 5.0 or z_diff > 7.5:
+                break
+            
+            # 防止极端情况下的死循环，尝试10次后强制跳出
+            if '_loop_count' not in locals():
+                _loop_count = 0
+            _loop_count += 1
+            if _loop_count >= 10:
+                logger.warning("随机位置生成10次仍未满足条件，强制接受当前生成的位置")
+                break
+        
+        # 基于身体摇摆位置计算眼睛的目标位置
+        # 将身体摇摆的值映射到眼睛移动的范围内
+        if EYE_FOLLOW_ENABLED:
+            # 计算眼睛X轴位置：左右眼同向移动，与身体左右摇摆同步
+            # 将身体X轴范围映射到眼睛X轴范围
+            x_ratio = new_x_target / max(abs(BODY_SWING_X_MAX_RANGE), 0.001)  # 将身体位置归一化(-1到1之间)，避免除以零
+            new_eye_x_target = x_ratio * EYE_X_MAX_RANGE  # 映射到眼睛X轴范围
+            
+            # 计算眼睛Y轴位置：根据Z轴旋转计算眼睛上下移动
+            # Z轴正值对应向上看，负值对应向下看
+            z_ratio = new_z_target / max(abs(BODY_SWING_Z_MAX_RANGE), 0.001)  # 将旋转角度归一化，避免除以零
+            new_eye_y_target = z_ratio * EYE_Y_MAX_RANGE  # 映射到眼睛Y轴范围
+            
+            logger.info(f"眼睛跟随: 当前=({current_eye_x_position:.2f}, {current_eye_y_position:.2f}), "
+                    f"目标=({new_eye_x_target:.2f}, {new_eye_y_target:.2f})")
+        
+        # 随机生成摇摆持续时间
+        swing_duration = random.uniform(BODY_SWING_MIN_DURATION, BODY_SWING_MAX_DURATION)
+        
+        # 随机选择一种缓动函数
+        easing_funcs = [
+            ease_in_out_sine,
+            ease_in_out_sine,    # 平滑流畅
+            ease_in_out_quad,    # 稍慢开始结束，中间快
+            ease_in_out_back,
+        ]
+        # 偏向于使用更自然的缓动函数
+        weights = [0.5, 0.25 ,0.15 ,0.1]
+        easing_func = random.choices(easing_funcs, weights=weights)[0]
+        easing_name = easing_func.__name__
+        
+        logger.info(f"随机摇摆参数: 当前位置=({current_x_position:.2f}, {current_z_position:.2f}), "
+                    f"目标=({new_x_target:.2f}, {new_z_target:.2f}), "
+                    f"持续时间={swing_duration:.2f}s, 缓动函数={easing_name}")
+        
+        # 从当前位置到新目标位置的平滑过渡
+        start_time = asyncio.get_event_loop().time()
+        end_time = start_time + swing_duration
+        
+        # 记录起始位置（当前位置）
+        start_x = current_x_position
+        start_z = current_z_position
+        
+        # 初始化眼睛位置变量（防止条件分支导致的未定义错误）
+        start_eye_x = current_eye_x_position
+        start_eye_y = current_eye_y_position
+        
+        # 记录眼睛起始位置
+        if EYE_FOLLOW_ENABLED:
+            start_eye_x = current_eye_x_position
+            start_eye_y = current_eye_y_position
+        
+        while True:
+            current_time = asyncio.get_event_loop().time()
+            if current_time >= end_time:
+                break
+                
+            # 计算进度比例
+            elapsed = current_time - start_time
+            progress = min(1.0, elapsed / swing_duration)
+            
+            # 使用所选缓动函数计算当前值
+            eased_progress = easing_func(progress)
+            
+            # 从起始位置平滑过渡到目标位置
+            x_value = start_x + (new_x_target - start_x) * eased_progress
+            z_value = start_z + (new_z_target - start_z) * eased_progress
+        
+            
+            # 更新当前位置
+            current_x_position = x_value
+            current_z_position = z_value
+            
+            # 使用set模式设置绝对参数值
+            try:
+                await plugin.set_parameter_value(BODY_SWING_X_PARAMETER, x_value, mode="set")
+                await plugin.set_parameter_value(BODY_SWING_Z_PARAMETER, z_value, mode="set")
+                
+                # 同步更新眼睛位置
+                if EYE_FOLLOW_ENABLED:
+                    # 计算眼睛当前位置
+                    eye_x_value = start_eye_x + (new_eye_x_target - start_eye_x) * eased_progress
+                    eye_y_value = start_eye_y + (new_eye_y_target - start_eye_y) * eased_progress
+                    
+                    # 更新眼睛当前位置
+                    current_eye_x_position = eye_x_value
+                    current_eye_y_position = eye_y_value
+                    
+                    # 设置眼睛参数
+                    await plugin.set_parameter_value(EYE_LEFT_X_PARAMETER, eye_x_value, mode="set")
+                    await plugin.set_parameter_value(EYE_RIGHT_X_PARAMETER, eye_x_value, mode="set")
+                    await plugin.set_parameter_value(EYE_LEFT_Y_PARAMETER, eye_y_value, mode="set")
+                    await plugin.set_parameter_value(EYE_RIGHT_Y_PARAMETER, eye_y_value, mode="set")
+            except (APIError, ResponseError, ConnectionError) as e:
+                logger.error(f"设置身体摇摆参数时出错: {e}")
+                return False # 出错则中断本次摇摆
+                
+            # 控制更新频率
+            next_step_time = min(current_time + 0.033, end_time)  # 约30fps
+            sleep_time = max(0, next_step_time - asyncio.get_event_loop().time())
+            if sleep_time > 0:
+                await asyncio.sleep(sleep_time)
+        
+        # 确保到达目标位置
+        try:
+            await plugin.set_parameter_value(BODY_SWING_X_PARAMETER, new_x_target, mode="set")
+            await plugin.set_parameter_value(BODY_SWING_Z_PARAMETER, new_z_target, mode="set")
+            current_x_position = new_x_target
+            current_z_position = new_z_target
+            
+            # 确保眼睛到达目标位置
+            if EYE_FOLLOW_ENABLED:
+                await plugin.set_parameter_value(EYE_LEFT_X_PARAMETER, new_eye_x_target, mode="set")
+                await plugin.set_parameter_value(EYE_RIGHT_X_PARAMETER, new_eye_x_target, mode="set")
+                await plugin.set_parameter_value(EYE_LEFT_Y_PARAMETER, new_eye_y_target, mode="set")
+                await plugin.set_parameter_value(EYE_RIGHT_Y_PARAMETER, new_eye_y_target, mode="set")
+                current_eye_x_position = new_eye_x_target
+                current_eye_y_position = new_eye_y_target
+        except (APIError, ResponseError, ConnectionError) as e:
+            logger.error(f"设置最终身体摇摆参数时出错: {e}")
+                
+    except Exception as e:
+        logger.error(f"执行身体摇摆周期时发生意外错误: {e}")
+        logger.error(traceback.format_exc())
+        return False
+        
+    return True  # 返回True表示身体摇摆周期完成
+
+# --- 身体摇摆任务 ---
+async def body_swing_task(plugin: VTSPlugin):
+    """持续运行身体摇摆效果的任务"""
+    global body_swing_active
+    body_swing_active = True
+    
+    logger.info("开始身体摇摆效果...")
+    
+    try:
+        while not shutdown_event.is_set() and body_swing_active:
+            # 执行一次完整的身体摇摆周期
+            success = await body_swing_cycle(plugin)
+            if not success:
+                # 如果身体摇摆周期执行失败，暂停一下再继续
+                await asyncio.sleep(1.0)
+    except asyncio.CancelledError:
+        logger.info("身体摇摆任务被取消")
+    except Exception as e:
+        logger.error(f"身体摇摆任务发生错误: {e}")
+        logger.error(traceback.format_exc())
+    finally:
+        body_swing_active = False
+        logger.info("身体摇摆效果已停止")
 
 # --- 主循环 ---
 async def run_blinking_loop():
     """运行眨眼插件的主循环"""
-    global plugin
+    global plugin, current_x_position, current_z_position, current_eye_x_position, current_eye_y_position
+    
+    # 重置全局变量
+    current_x_position = 0.0
+    current_z_position = 0.0
+    current_eye_x_position = 0.0
+    current_eye_y_position = 0.0
+    
+    # 初始化任务对象
+    breathing_task_obj = None
+    body_swing_task_obj = None
+    
     plugin = VTSPlugin(
         plugin_name=PLUGIN_NAME,
         plugin_developer=PLUGIN_DEVELOPER,
@@ -142,8 +477,55 @@ async def run_blinking_loop():
     logger.info(f"尝试连接到 VTube Studio: {DEFAULT_VTS_ENDPOINT}")
 
     try:
-        # 连接与认证
-        authenticated = await plugin.connect_and_authenticate()
+        # 连接与认证，但可随时中断
+        authentication_done = asyncio.Event()
+        authentication_result = [False]  # 使用列表来存储结果，这样可以在回调中修改
+        
+        async def auth_process():
+            try:
+                # 尝试连接和认证
+                if plugin is not None:
+                    result = await plugin.connect_and_authenticate()
+                    authentication_result[0] = result
+                else:
+                    logger.error("插件未初始化，无法进行认证")
+                    return False
+            except Exception as e:
+                logger.error(f"认证过程出错: {e}")
+            finally:
+                # 无论认证成功与否，都标记为完成
+                authentication_done.set()
+        
+        # 启动认证过程
+        auth_task = asyncio.create_task(auth_process())
+        
+        # 等待认证完成或收到关闭信号
+        while not authentication_done.is_set() and not shutdown_event.is_set():
+            # 同时等待两个事件，但最多等待0.1秒
+            try:
+                await asyncio.wait_for(
+                    asyncio.gather(
+                        authentication_done.wait(),
+                        shutdown_event.wait()
+                    ),
+                    timeout=0.1
+                )
+            except asyncio.TimeoutError:
+                # 超时继续循环检查
+                pass
+        
+        # 如果收到关闭信号且认证未完成，取消认证任务
+        if shutdown_event.is_set() and not authentication_done.is_set():
+            logger.info("在认证过程中收到关闭信号，中止连接...")
+            auth_task.cancel()
+            try:
+                await auth_task
+            except asyncio.CancelledError:
+                pass
+            return
+        
+        # 获取认证结果
+        authenticated = authentication_result[0]
         if not authenticated:
             logger.critical("认证失败，请检查 VTube Studio API 设置或令牌文件。")
             return
@@ -151,12 +533,26 @@ async def run_blinking_loop():
         logger.info("认证成功！开始自动眨眼循环。")
         logger.info(f"眨眼间隔: {MIN_INTERVAL:.2f}-{MAX_INTERVAL:.2f} 秒")
         logger.info(f"动画速度: 闭眼={CLOSE_DURATION:.2f}s, 睁眼={OPEN_DURATION:.2f}s, 闭合保持={CLOSED_HOLD:.2f}s")
+        
+        # 启动呼吸任务
+        breathing_task_obj = None
+        if BREATHING_ENABLED:
+            logger.info(f"启动呼吸效果 (参数: {BREATHING_PARAMETER}, 范围: {BREATHING_MIN_VALUE} ~ {BREATHING_MAX_VALUE})")
+            logger.info(f"呼吸周期: 吸气={BREATHING_INHALE_DURATION:.1f}s, 呼气={BREATHING_EXHALE_DURATION:.1f}s")
+            breathing_task_obj = asyncio.create_task(breathing_task(plugin))
+            
+        # 启动身体摇摆任务
+        body_swing_task_obj = None
+        if BODY_SWING_ENABLED:
+            logger.info(f"启动随机身体摇摆效果 (X参数: {BODY_SWING_X_PARAMETER}, 范围: {BODY_SWING_X_MIN_RANGE} ~ {BODY_SWING_X_MAX_RANGE})")
+            logger.info(f"启动随机上肢旋转效果 (Z参数: {BODY_SWING_Z_PARAMETER}, 范围: {BODY_SWING_Z_MIN_RANGE} ~ {BODY_SWING_Z_MAX_RANGE})")
+            body_swing_task_obj = asyncio.create_task(body_swing_task(plugin))
 
         # 主循环
         while not shutdown_event.is_set():
             # 随机等待一段时间
             wait_time = random.uniform(MIN_INTERVAL, MAX_INTERVAL)
-            logger.debug(f"下次眨眼等待: {wait_time:.2f} 秒")
+            logger.info(f"下次眨眼等待: {wait_time:.2f} 秒")
             try:
                 # 使用 asyncio.wait_for 来允许在等待期间被中断
                 await asyncio.wait_for(asyncio.sleep(wait_time), timeout=wait_time + 1)
@@ -192,22 +588,61 @@ async def run_blinking_loop():
     finally:
         # 清理操作
         logger.info("开始清理...")
+        
+        # 取消呼吸任务
+        if breathing_task_obj and not breathing_task_obj.done():
+            logger.info("正在停止呼吸效果...")
+            breathing_task_obj.cancel()
+            try:
+                await breathing_task_obj  # 等待任务真正结束
+            except asyncio.CancelledError:
+                pass
+                
+        # 取消身体摇摆任务
+        if body_swing_task_obj and not body_swing_task_obj.done():
+            logger.info("正在停止身体摇摆效果...")
+            body_swing_task_obj.cancel()
+            try:
+                await body_swing_task_obj  # 等待任务真正结束
+            except asyncio.CancelledError:
+                pass
+            
         if plugin and plugin.client.is_authenticated:
-            logger.info("尝试将眼睛恢复为完全睁开状态...")
+            logger.info("尝试将模型参数恢复为初始状态...")
             try:
                 # 优先尝试设置参数，即使断开连接可能失败
-                await plugin.set_parameter_value("EyeOpenLeft", 1.0)
-                await plugin.set_parameter_value("EyeOpenRight", 1.0)
-                logger.info("眼睛状态已尝试恢复。")
+                await plugin.set_parameter_value("EyeOpenLeft", 1.0, mode="set")
+                await plugin.set_parameter_value("EyeOpenRight", 1.0, mode="set")
+                
+                # 重置呼吸参数
+                await plugin.set_parameter_value(BREATHING_PARAMETER, 0.0, mode="set")
+                
+                # 重置身体摇摆参数
+                await plugin.set_parameter_value(BODY_SWING_X_PARAMETER, 0.0, mode="set")
+                await plugin.set_parameter_value(BODY_SWING_Z_PARAMETER, 0.0, mode="set")
+                
+                # 重置眼睛位置参数
+                if EYE_FOLLOW_ENABLED:
+                    await plugin.set_parameter_value(EYE_LEFT_X_PARAMETER, 0.0, mode="set")
+                    await plugin.set_parameter_value(EYE_RIGHT_X_PARAMETER, 0.0, mode="set")
+                    await plugin.set_parameter_value(EYE_LEFT_Y_PARAMETER, 0.0, mode="set")
+                    await plugin.set_parameter_value(EYE_RIGHT_Y_PARAMETER, 0.0, mode="set")
+                
+                current_x_position = 0.0
+                current_z_position = 0.0
+                current_eye_x_position = 0.0
+                current_eye_y_position = 0.0
+                
+                logger.info("模型参数已尝试恢复。")
             except Exception as e_set:
                 # 记录错误，但不阻塞关闭流程
-                logger.warning(f"恢复眼睛状态时出错（可能已断开连接）: {e_set}")
+                logger.warning(f"恢复模型参数时出错（可能已断开连接）: {e_set}")
         
         if plugin:
             await plugin.disconnect()
             logger.info("与 VTube Studio 的连接已断开。")
         
-        logger.info("自动眨眼插件已关闭。")
+        logger.info("插件已关闭。")
 
 # --- 信号处理 ---
 def handle_signal(sig, frame):
