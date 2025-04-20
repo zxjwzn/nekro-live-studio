@@ -59,7 +59,7 @@ async def blink_cycle(plugin: VTSPlugin, close_duration: float = 0.08, open_dura
             # 计算进度比例
             elapsed = current_time - start_time
             progress = min(1.0, elapsed / close_duration)
-            value = 1.0 * (1.0 - ease_out_sine(progress)) # 值从 1.0 降到 0.0
+            value = 1.0 * (1.0 - ease_in_sine(progress)) # 值从 1.0 降到 0.0
 
             # 使用 plugin.set_parameter_value 设置参数
             try:
