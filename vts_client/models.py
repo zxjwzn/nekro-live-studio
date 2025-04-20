@@ -114,14 +114,16 @@ class ParameterValueRequest(VTSRequest):
     def __init__(self, parameter_name: str):
         super().__init__(message_type="ParameterValueRequest", data={"name": parameter_name})
 
+
 @dataclass
 class SetParameterValueRequest(VTSRequest):
     """为默认或自定义参数注入数据请求
     mode: 'set' (覆盖) 或 'add' (增加)
     weight: 仅在 mode='set' 时有效, 0到1之间，用于混合API值和原始跟踪值
     """
-    def __init__(self, parameter_name: str, value: float, weight: float = 1.0, mode: str = "set"):
+    def __init__(self, parameter_name: str, value: float, weight: float = 1.0, mode: str = "set", face_found: bool = True):
         super().__init__(message_type="InjectParameterDataRequest", data={
+            "faceFound": face_found,
             "mode": mode,
             "parameterValues": [{
                 "id": parameter_name,
@@ -129,6 +131,26 @@ class SetParameterValueRequest(VTSRequest):
                 "weight": weight
             }]
         })
+
+
+@dataclass
+class ParameterCreationRequest(VTSRequest):
+    """创建新的自定义参数请求
+    parameter_name: 参数名称 (字母数字，4-32字符)
+    explanation: 参数说明 (可选，<256字符)
+    min_value, max_value: 参数映射时的默认范围 (-1000000 到 1000000)
+    default_value: 参数映射时的默认值 (-1000000 到 1000000)
+    """
+    def __init__(self, parameter_name: str, min_value: float, max_value: float, default_value: float, explanation: Optional[str] = None):
+        data = {
+            "parameterName": parameter_name,
+            "min": min_value,
+            "max": max_value,
+            "defaultValue": default_value
+        }
+        if explanation:
+            data["explanation"] = explanation
+        super().__init__(message_type="ParameterCreationRequest", data=data)
 
 
 @dataclass

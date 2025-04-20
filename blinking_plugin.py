@@ -5,36 +5,37 @@ import asyncio
 import logging
 import signal
 import random
-import argparse
 import math
 import traceback
 from typing import Optional
 
 # 假设 vts_client 包在当前目录下或 Python 路径中
 from vts_client import VTSPlugin, VTSException, APIError, ResponseError, ConnectionError, AuthenticationError
+from easing import ease_out_sine, ease_in_sine
 
 # --- 配置 ---
 PLUGIN_NAME = "自动眨眼插件"
 PLUGIN_DEVELOPER = "迁移自BlinkingClient"
 DEFAULT_VTS_ENDPOINT = "ws://localhost:8001"
 
+# --- 眨眼配置 ---
+MIN_INTERVAL = 2.0  # 两次眨眼之间的最小间隔时间（秒）
+MAX_INTERVAL = 4.0  # 两次眨眼之间的最大间隔时间（秒）
+CLOSE_DURATION = 0.12  # 闭眼动画持续时间（秒）
+OPEN_DURATION = 0.24  # 睁眼动画持续时间（秒）
+CLOSED_HOLD = 0.03  # 眼睛闭合状态的保持时间（秒）
+DEBUG_MODE = False  # 是否启用调试模式
+
 # --- 日志设置 ---
-# 使用 INFO 级别，如果需要更详细的调试信息，可以在命令行参数中启用 DEBUG
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("BlinkingPlugin")
+if DEBUG_MODE:
+    logger.setLevel(logging.DEBUG)
+    logging.getLogger("vts_client").setLevel(logging.DEBUG)
 
 # --- 全局变量 ---
 plugin: Optional[VTSPlugin] = None
 shutdown_event = asyncio.Event()
-
-# --- 缓动函数 (从 easing.py 复制) ---
-def ease_in_sine(t):
-    """缓入正弦函数"""
-    return 1 - math.cos((t * math.pi) / 2) # 使用 math.cos 实现
-
-def ease_out_sine(t):
-    """缓出正弦函数"""
-    return math.sin((t * math.pi) / 2)
 
 # --- 核心眨眼逻辑 ---
 async def blink_cycle(plugin: VTSPlugin, close_duration: float = 0.08, open_duration: float = 0.08, closed_hold: float = 0.05):
@@ -47,19 +48,32 @@ async def blink_cycle(plugin: VTSPlugin, close_duration: float = 0.08, open_dura
     try:
         # 1. 闭眼 (使用 ease_out_sine 从 1.0 过渡到 0.0)
         logger.debug("开始闭眼 (缓动 1.0 -> 0.0)")
-        for i in range(steps + 1):
-            t = i / steps # 时间进度 (0 到 1)
-            value = 1.0 * (1.0 - ease_out_sine(t)) # 值从 1.0 降到 0.0
+        start_time = asyncio.get_event_loop().time()
+        end_time = start_time + close_duration
+        
+        while True:
+            current_time = asyncio.get_event_loop().time()
+            if current_time >= end_time:
+                break
+                
+            # 计算进度比例
+            elapsed = current_time - start_time
+            progress = min(1.0, elapsed / close_duration)
+            value = 1.0 * (1.0 - ease_out_sine(progress)) # 值从 1.0 降到 0.0
 
             # 使用 plugin.set_parameter_value 设置参数
-            # 注意：需要分别设置左右眼参数
             try:
                 await plugin.set_parameter_value("EyeOpenLeft", value, mode="set")
                 await plugin.set_parameter_value("EyeOpenRight", value, mode="set")
             except (APIError, ResponseError, ConnectionError) as e:
                 logger.error(f"设置闭眼参数时出错: {e}")
                 return # 出错则中断本次眨眼
-            await asyncio.sleep(close_duration / steps)
+                
+            # 计算需要等待的时间，保证动画平滑但不超过总时长
+            next_step_time = min(current_time + 0.016, end_time)  # 约60fps，最多等待16ms
+            sleep_time = max(0, next_step_time - asyncio.get_event_loop().time())
+            if sleep_time > 0:
+                await asyncio.sleep(sleep_time)
 
         # 确保完全闭合
         try:
@@ -75,9 +89,18 @@ async def blink_cycle(plugin: VTSPlugin, close_duration: float = 0.08, open_dura
 
         # 3. 睁眼 (使用 ease_in_sine 从 0.0 过渡到 1.0)
         logger.debug("开始睁眼 (缓动 0.0 -> 1.0)")
-        for i in range(steps + 1):
-            t = i / steps # 时间进度 (0 到 1)
-            value = 1.0 * ease_in_sine(t) # 值从 0.0 升到 1.0
+        start_time = asyncio.get_event_loop().time()
+        end_time = start_time + open_duration
+        
+        while True:
+            current_time = asyncio.get_event_loop().time()
+            if current_time >= end_time:
+                break
+                
+            # 计算进度比例
+            elapsed = current_time - start_time
+            progress = min(1.0, elapsed / open_duration)
+            value = 1.0 * ease_in_sine(progress) # 值从 0.0 升到 1.0
 
             try:
                 await plugin.set_parameter_value("EyeOpenLeft", value, mode="set")
@@ -85,7 +108,12 @@ async def blink_cycle(plugin: VTSPlugin, close_duration: float = 0.08, open_dura
             except (APIError, ResponseError, ConnectionError) as e:
                 logger.error(f"设置睁眼参数时出错: {e}")
                 return # 出错则中断本次眨眼
-            await asyncio.sleep(open_duration / steps)
+                
+            # 计算需要等待的时间，保证动画平滑但不超过总时长
+            next_step_time = min(current_time + 0.016, end_time)  # 约60fps，最多等待16ms
+            sleep_time = max(0, next_step_time - asyncio.get_event_loop().time())
+            if sleep_time > 0:
+                await asyncio.sleep(sleep_time)
 
         # --- 动画结束，确保眼睛是睁开状态 (1.0) ---
         logger.debug("眨眼动画完成，确保眼睛保持睁开")
@@ -102,16 +130,16 @@ async def blink_cycle(plugin: VTSPlugin, close_duration: float = 0.08, open_dura
 
 
 # --- 主循环 ---
-async def run_blinking_loop(args):
+async def run_blinking_loop():
     """运行眨眼插件的主循环"""
     global plugin
     plugin = VTSPlugin(
         plugin_name=PLUGIN_NAME,
         plugin_developer=PLUGIN_DEVELOPER,
-        endpoint=args.vts_endpoint # 使用命令行参数指定的 VTS 端点
+        endpoint=DEFAULT_VTS_ENDPOINT
     )
 
-    logger.info(f"尝试连接到 VTube Studio: {args.vts_endpoint}")
+    logger.info(f"尝试连接到 VTube Studio: {DEFAULT_VTS_ENDPOINT}")
 
     try:
         # 连接与认证
@@ -121,13 +149,13 @@ async def run_blinking_loop(args):
             return
 
         logger.info("认证成功！开始自动眨眼循环。")
-        logger.info(f"眨眼间隔: {args.min_interval:.2f}-{args.max_interval:.2f} 秒")
-        logger.info(f"动画速度: 闭眼={args.close_duration:.2f}s, 睁眼={args.open_duration:.2f}s, 闭合保持={args.closed_hold:.2f}s")
+        logger.info(f"眨眼间隔: {MIN_INTERVAL:.2f}-{MAX_INTERVAL:.2f} 秒")
+        logger.info(f"动画速度: 闭眼={CLOSE_DURATION:.2f}s, 睁眼={OPEN_DURATION:.2f}s, 闭合保持={CLOSED_HOLD:.2f}s")
 
         # 主循环
         while not shutdown_event.is_set():
             # 随机等待一段时间
-            wait_time = random.uniform(args.min_interval, args.max_interval)
+            wait_time = random.uniform(MIN_INTERVAL, MAX_INTERVAL)
             logger.debug(f"下次眨眼等待: {wait_time:.2f} 秒")
             try:
                 # 使用 asyncio.wait_for 来允许在等待期间被中断
@@ -145,9 +173,9 @@ async def run_blinking_loop(args):
             logger.info("执行眨眼...")
             await blink_cycle(
                 plugin=plugin,
-                close_duration=args.close_duration,
-                open_duration=args.open_duration,
-                closed_hold=args.closed_hold
+                close_duration=CLOSE_DURATION,
+                open_duration=OPEN_DURATION,
+                closed_hold=CLOSED_HOLD
             )
 
     except ConnectionError as e:
@@ -190,21 +218,6 @@ def handle_signal(sig, frame):
 
 # --- 入口点 ---
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='通过 VTSPlugin 控制模型眨眼')
-    parser.add_argument('--vts-endpoint', type=str, default=DEFAULT_VTS_ENDPOINT, help=f'VTube Studio API 的 WebSocket 端点 (默认: {DEFAULT_VTS_ENDPOINT})')
-    parser.add_argument('--min-interval', type=float, default=2.0, help='两次眨眼之间的最小间隔时间（秒）')
-    parser.add_argument('--max-interval', type=float, default=4.0, help='两次眨眼之间的最大间隔时间（秒）')
-    parser.add_argument('--close-duration', type=float, default=0.12, help='闭眼动画持续时间（秒）')
-    parser.add_argument('--open-duration', type=float, default=0.24, help='睁眼动画持续时间（秒）')
-    parser.add_argument('--closed-hold', type=float, default=0.03, help='眼睛闭合状态的保持时间（秒）')
-    parser.add_argument('--debug', action='store_true', help='启用调试日志级别')
-    args = parser.parse_args()
-
-    if args.debug:
-        logger.setLevel(logging.DEBUG)
-        # 可以考虑也设置 vts_client 的日志级别
-        logging.getLogger("vts_client").setLevel(logging.DEBUG)
-
     # 设置信号处理
     signal.signal(signal.SIGINT, handle_signal)
     signal.signal(signal.SIGTERM, handle_signal)
@@ -214,7 +227,7 @@ if __name__ == "__main__":
     # 运行主异步函数
     main_task = None
     try:
-        main_task = asyncio.run(run_blinking_loop(args))
+        main_task = asyncio.run(run_blinking_loop())
     except KeyboardInterrupt:
         logger.info("程序被 Ctrl+C 强制退出")
     except asyncio.CancelledError:

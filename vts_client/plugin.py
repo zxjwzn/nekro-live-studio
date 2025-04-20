@@ -20,6 +20,7 @@ from .models import (
     CurrentModelRequest, AvailableModelsRequest, ModelLoadRequest, MoveModelRequest,  # noqa: F401
     # Params
     AvailableParametersRequest, AvailableLive2dParametersRequest, ParameterValueRequest, SetParameterValueRequest,  # noqa: F401
+    ParameterCreationRequest, # noqa: F401
     # Expressions
     ExpressionListRequest, ExpressionActivationRequest,  # noqa: F401
     # Hotkeys
@@ -183,7 +184,7 @@ class VTSPlugin:
         response = await self.client.send_request(ParameterValueRequest(parameter_name))
         return response.data
 
-    async def set_parameter_value(self, parameter_name: str, value: float, weight: float = 1.0, mode: str = "set") -> Dict[str, Any]:
+    async def set_parameter_value(self, parameter_name: str, value: float, weight: float = 1.0, mode: str = "set", face_found: bool = True) -> Dict[str, Any]:
         """为默认或自定义参数注入数据。
         
         Args:
@@ -192,9 +193,30 @@ class VTSPlugin:
             weight: (仅当 mode='set') 混合权重 (0-1)。1 表示完全覆盖。
             mode: 'set' (设置/覆盖) 或 'add' (添加到当前值)。
         """
-        request = SetParameterValueRequest(parameter_name, value, weight=weight, mode=mode)
+        request = SetParameterValueRequest(parameter_name, value, weight=weight, mode=mode, face_found=face_found)
         response = await self.client.send_request(request)
         return response.data # 成功时为空
+
+    async def create_parameter(
+        self, 
+        parameter_name: str, 
+        min_value: float, 
+        max_value: float, 
+        default_value: float, 
+        explanation: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """创建新的自定义输入参数。
+
+        Args:
+            parameter_name: 参数名称 (字母数字，4-32字符，无空格)。
+            min_value: 参数映射时的默认最小值 (-1000000 到 1000000)。
+            max_value: 参数映射时的默认最大值 (-1000000 到 1000000)。
+            default_value: 参数映射时的默认值 (-1000000 到 1000000)。
+            explanation: (可选) 参数的简短说明 (<256 字符)。
+        """
+        request = ParameterCreationRequest(parameter_name, min_value, max_value, default_value, explanation)
+        response = await self.client.send_request(request)
+        return response.data
 
     # --- Expression Related Methods ---
 
