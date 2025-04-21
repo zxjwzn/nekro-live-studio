@@ -1,6 +1,4 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
+#待重构
 import asyncio
 import logging
 import signal
@@ -19,6 +17,7 @@ PLUGIN_DEVELOPER = "迁移自BlinkingClient"
 DEFAULT_VTS_ENDPOINT = "ws://localhost:8002"
 
 # --- 眨眼配置 ---
+BLINK_ENABLED = True  # 是否启用眨眼效果
 MIN_INTERVAL = 2.0  # 两次眨眼之间的最小间隔时间（秒）
 MAX_INTERVAL = 4.0  # 两次眨眼之间的最大间隔时间（秒）
 CLOSE_DURATION = 0.15  # 闭眼动画持续时间（秒）
@@ -77,6 +76,7 @@ if DEBUG_MODE:
 # --- 全局变量 ---
 plugin: Optional[VTSPlugin] = None
 shutdown_event = asyncio.Event()
+blink_active = False
 breathing_active = False
 body_swing_active = False
 mouth_expression_active = False
@@ -615,8 +615,48 @@ async def mouth_expression_task(plugin: VTSPlugin):
         mouth_expression_active = False
         logger.info("嘴部表情变化效果已停止")
 
+# --- 眨眼任务 ---
+async def blink_task(plugin: VTSPlugin):
+    """持续运行眨眼效果的任务"""
+    global blink_active
+    blink_active = True
+    
+    logger.info("开始自动眨眼效果...")
+    
+    try:
+        while not shutdown_event.is_set() and blink_active:
+            # 随机等待一段时间
+            wait_time = random.uniform(MIN_INTERVAL, MAX_INTERVAL)
+            logger.info(f"下次眨眼等待: {wait_time:.2f} 秒")
+            
+            try:
+                # 使用 asyncio.wait_for 来允许在等待期间被中断
+                await asyncio.wait_for(asyncio.sleep(wait_time), timeout=wait_time + 1)
+            except asyncio.TimeoutError:
+                pass # 正常等待完成
+                
+            if shutdown_event.is_set() or not blink_active:
+                break # 检查是否在等待期间收到了关闭信号
+            
+            # 执行眨眼
+            logger.info("执行眨眼...")
+            await blink_cycle(
+                plugin=plugin,
+                close_duration=CLOSE_DURATION,
+                open_duration=OPEN_DURATION,
+                closed_hold=CLOSED_HOLD
+            )
+    except asyncio.CancelledError:
+        logger.info("眨眼任务被取消")
+    except Exception as e:
+        logger.error(f"眨眼任务发生错误: {e}")
+        logger.error(traceback.format_exc())
+    finally:
+        blink_active = False
+        logger.info("眨眼效果已停止")
+
 # --- 主循环 ---
-async def run_blinking_loop():
+async def run_loop():
     """运行眨眼插件的主循环"""
     global plugin, current_x_position, current_z_position, current_eye_x_position, current_eye_y_position
     global current_mouth_smile, current_mouth_open
@@ -630,6 +670,7 @@ async def run_blinking_loop():
     current_mouth_open = 0.0   # 初始设为闭嘴
     
     # 初始化任务对象
+    blink_task_obj = None
     breathing_task_obj = None
     body_swing_task_obj = None
     mouth_expression_task_obj = None
@@ -704,6 +745,9 @@ async def run_blinking_loop():
         logger.info(f"眨眼间隔: {MIN_INTERVAL:.2f}-{MAX_INTERVAL:.2f} 秒")
         logger.info(f"动画速度: 闭眼={CLOSE_DURATION:.2f}s, 睁眼={OPEN_DURATION:.2f}s, 闭合保持={CLOSED_HOLD:.2f}s")
         
+        # 启动眨眼任务
+        blink_task_obj = asyncio.create_task(blink_task(plugin))
+        
         # 启动呼吸任务
         breathing_task_obj = None
         if BREATHING_ENABLED:
@@ -725,31 +769,9 @@ async def run_blinking_loop():
             logger.info(f"启动随机嘴部开合效果 (开口参数: {MOUTH_OPEN_PARAMETER}, 范围: {MOUTH_OPEN_MIN} ~ {MOUTH_OPEN_MAX})")
             mouth_expression_task_obj = asyncio.create_task(mouth_expression_task(plugin))
 
-        # 主循环
+        # 等待关闭信号
         while not shutdown_event.is_set():
-            # 随机等待一段时间
-            wait_time = random.uniform(MIN_INTERVAL, MAX_INTERVAL)
-            logger.info(f"下次眨眼等待: {wait_time:.2f} 秒")
-            try:
-                # 使用 asyncio.wait_for 来允许在等待期间被中断
-                await asyncio.wait_for(asyncio.sleep(wait_time), timeout=wait_time + 1)
-            except asyncio.TimeoutError:
-                pass # 正常等待完成
-            except asyncio.CancelledError:
-                logger.info("等待被取消，准备退出循环...")
-                break # 如果任务被取消，退出循环
-
-            if shutdown_event.is_set():
-                break # 检查是否在等待期间收到了关闭信号
-
-            # 执行眨眼
-            logger.info("执行眨眼...")
-            await blink_cycle(
-                plugin=plugin,
-                close_duration=CLOSE_DURATION,
-                open_duration=OPEN_DURATION,
-                closed_hold=CLOSED_HOLD
-            )
+            await asyncio.sleep(0.5)  # 定期检查关闭信号
 
     except ConnectionError as e:
         logger.critical(f"无法连接到 VTube Studio: {e}")
@@ -765,6 +787,15 @@ async def run_blinking_loop():
     finally:
         # 清理操作
         logger.info("开始清理...")
+        
+        # 取消眨眼任务
+        if blink_task_obj and not blink_task_obj.done():
+            logger.info("正在停止眨眼效果...")
+            blink_task_obj.cancel()
+            try:
+                await blink_task_obj  # 等待任务真正结束
+            except asyncio.CancelledError:
+                pass
         
         # 取消呼吸任务
         if breathing_task_obj and not breathing_task_obj.done():
@@ -854,7 +885,7 @@ if __name__ == "__main__":
     # 运行主异步函数
     main_task = None
     try:
-        main_task = asyncio.run(run_blinking_loop())
+        main_task = asyncio.run(run_loop())
     except KeyboardInterrupt:
         logger.info("程序被 Ctrl+C 强制退出")
     except asyncio.CancelledError:
