@@ -36,12 +36,12 @@ BREATHING_PARAMETER = "FaceAngleY"  # 呼吸控制的参数名
 
 # --- 身体摇摆配置 ---
 BODY_SWING_ENABLED = True  # 是否启用身体摇摆效果
-BODY_SWING_X_MIN_RANGE = -15.0  # 身体左右摇摆最小值范围（左侧）
-BODY_SWING_X_MAX_RANGE = 25.0  # 身体左右摇摆最大值范围（右侧）
-BODY_SWING_Z_MIN_RANGE = -15.0  # 上肢旋转最小值范围
-BODY_SWING_Z_MAX_RANGE = 25.0  # 上肢旋转最大值范围
+BODY_SWING_X_MIN = -10.0  # 身体左右摇摆最小位置（左侧）
+BODY_SWING_X_MAX = 15.0  # 身体左右摇摆最大位置（右侧）
+BODY_SWING_Z_MIN = -10.0  # 上肢旋转最小位置（下方）
+BODY_SWING_Z_MAX = 15.0  # 上肢旋转最大位置（上方）
 BODY_SWING_MIN_DURATION = 2.0  # 摇摆最短持续时间（秒）
-BODY_SWING_MAX_DURATION = 5.0  # 摇摆最长持续时间（秒）
+BODY_SWING_MAX_DURATION = 8.0  # 摇摆最长持续时间（秒）
 BODY_SWING_X_PARAMETER = "FaceAngleX"  # 身体左右摇摆控制的参数名
 BODY_SWING_Z_PARAMETER = "FaceAngleZ"  # 上肢旋转控制的参数名
 
@@ -56,6 +56,17 @@ EYE_RIGHT_X_PARAMETER = "EyeRightX"  # 右眼水平移动参数
 EYE_LEFT_Y_PARAMETER = "EyeLeftY"  # 左眼垂直移动参数
 EYE_RIGHT_Y_PARAMETER = "EyeRightY"  # 右眼垂直移动参数
 
+# --- 嘴部表情配置 ---
+MOUTH_EXPRESSION_ENABLED = True  # 是否启用嘴部表情变化
+MOUTH_SMILE_MIN = 0.1  # 嘴角微笑最小值（不高兴）
+MOUTH_SMILE_MAX = 0.7  # 嘴角微笑最大值（高兴）
+MOUTH_OPEN_MIN = 0.1  # 嘴巴开合最小值（闭合）
+MOUTH_OPEN_MAX = 0.7  # 嘴巴开合最大值（张开，可调小避免过度张嘴）
+MOUTH_CHANGE_MIN_DURATION = 2.0  # 表情变化最短持续时间（秒）
+MOUTH_CHANGE_MAX_DURATION = 7.0  # 表情变化最长持续时间（秒）
+MOUTH_SMILE_PARAMETER = "MouthSmile"  # 嘴角微笑控制的参数名
+MOUTH_OPEN_PARAMETER = "MouthOpen"    # 嘴巴开合控制的参数名
+
 # --- 日志设置 ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("BlinkingPlugin")
@@ -68,13 +79,17 @@ plugin: Optional[VTSPlugin] = None
 shutdown_event = asyncio.Event()
 breathing_active = False
 body_swing_active = False
+mouth_expression_active = False
 # 当前身体摇摆位置
 current_x_position = 0.0
 current_z_position = 0.0
 # 当前眼睛位置
 current_eye_x_position = 0.0
 current_eye_y_position = 0.0
-
+# 当前嘴部表情
+current_mouth_smile = 0.0
+current_mouth_open = 0.0
+start_parameters = []
 # --- 核心眨眼逻辑 ---
 async def blink_cycle(plugin: VTSPlugin, close_duration: float = 0.08, open_duration: float = 0.08, closed_hold: float = 0.05):
     """执行一次带有缓动效果的完整眨眼周期 (异步)，结束后保持睁眼"""
@@ -273,23 +288,15 @@ async def body_swing_cycle(plugin: VTSPlugin):
         # 随机生成本次摇摆的参数
         # 随机生成摇摆的目标值 - 避免生成与当前位置太接近的值
         while True:
-            # 随机方向
-            direction = random.choice([-1, 1])  
-            
-            # 随机生成摇摆的强度（幅度）
-            x_intensity = random.uniform(5.0, min(abs(BODY_SWING_X_MIN_RANGE), abs(BODY_SWING_X_MAX_RANGE)))
-            z_intensity = random.uniform(5.0, min(abs(BODY_SWING_Z_MIN_RANGE), abs(BODY_SWING_Z_MAX_RANGE)))
-            
-            # 随机生成新的目标位置
-            new_x_target = direction * x_intensity
-            new_z_target = direction * z_intensity
+            # 直接在指定范围内随机生成新的目标位置
+            new_x_target = random.uniform(BODY_SWING_X_MIN, BODY_SWING_X_MAX)
+            new_z_target = random.uniform(BODY_SWING_Z_MIN, BODY_SWING_Z_MAX)
             
             # 确保新位置与当前位置有足够差异
             x_diff = abs(new_x_target - current_x_position)
             z_diff = abs(new_z_target - current_z_position)
             
-            # 修改为更合理的终止条件: 只要位置变化足够大(根据参数实际范围调整)，则接受这个新位置
-            # 原本条件: if x_diff > 10.0 or z_diff > 15.0 是不可能满足的，因为x_intensity最大为10.0，z_intensity最大为15.0
+            # 修改为更合理的终止条件: 只要位置变化足够大，则接受这个新位置
             if x_diff > 5.0 or z_diff > 7.5:
                 break
             
@@ -302,17 +309,23 @@ async def body_swing_cycle(plugin: VTSPlugin):
                 break
         
         # 基于身体摇摆位置计算眼睛的目标位置
-        # 将身体摇摆的值映射到眼睛移动的范围内
         if EYE_FOLLOW_ENABLED:
-            # 计算眼睛X轴位置：左右眼同向移动，与身体左右摇摆同步
-            # 将身体X轴范围映射到眼睛X轴范围
-            x_ratio = new_x_target / max(abs(BODY_SWING_X_MAX_RANGE), 0.001)  # 将身体位置归一化(-1到1之间)，避免除以零
-            new_eye_x_target = x_ratio * EYE_X_MAX_RANGE  # 映射到眼睛X轴范围
+            # 计算眼睛X轴位置：将身体X轴范围映射到眼睛X轴范围
+            # 归一化当前X位置在身体摇摆范围内的比例
+            body_x_range = BODY_SWING_X_MAX - BODY_SWING_X_MIN
+            x_norm = (new_x_target - BODY_SWING_X_MIN) / body_x_range if body_x_range != 0 else 0
             
-            # 计算眼睛Y轴位置：根据Z轴旋转计算眼睛上下移动
-            # Z轴正值对应向上看，负值对应向下看
-            z_ratio = new_z_target / max(abs(BODY_SWING_Z_MAX_RANGE), 0.001)  # 将旋转角度归一化，避免除以零
-            new_eye_y_target = z_ratio * EYE_Y_MAX_RANGE  # 映射到眼睛Y轴范围
+            # 映射到眼睛X轴范围
+            eye_x_range = EYE_X_MAX_RANGE - EYE_X_MIN_RANGE
+            new_eye_x_target = EYE_X_MIN_RANGE + x_norm * eye_x_range
+            
+            # 计算眼睛Y轴位置：将身体Z轴范围映射到眼睛Y轴范围
+            body_z_range = BODY_SWING_Z_MAX - BODY_SWING_Z_MIN
+            z_norm = (new_z_target - BODY_SWING_Z_MIN) / body_z_range if body_z_range != 0 else 0
+            
+            # 映射到眼睛Y轴范围
+            eye_y_range = EYE_Y_MAX_RANGE - EYE_Y_MIN_RANGE
+            new_eye_y_target = EYE_Y_MIN_RANGE + z_norm * eye_y_range
             
             logger.info(f"眼睛跟随: 当前=({current_eye_x_position:.2f}, {current_eye_y_position:.2f}), "
                     f"目标=({new_eye_x_target:.2f}, {new_eye_y_target:.2f})")
@@ -453,20 +466,173 @@ async def body_swing_task(plugin: VTSPlugin):
         body_swing_active = False
         logger.info("身体摇摆效果已停止")
 
+# --- 嘴部表情逻辑 ---
+async def mouth_expression_cycle(plugin: VTSPlugin):
+    """执行一次随机的嘴部表情变化周期"""
+    global current_mouth_smile, current_mouth_open
+    logger.info("开始随机嘴部表情变化周期")
+    
+    try:
+        # 随机生成本次表情变化的参数
+        # 随机生成表情的目标值 - 避免生成与当前表情太接近的值
+        while True:
+            # 直接在指定范围内随机生成新的目标表情
+            new_mouth_smile = random.uniform(MOUTH_SMILE_MIN, MOUTH_SMILE_MAX)
+            
+            # 随机决定是否张嘴（有70%概率保持嘴巴闭合或微开）
+            if random.random() < 0.7:
+                new_mouth_open = random.uniform(MOUTH_OPEN_MIN, MOUTH_OPEN_MIN + 0.2)
+            else:
+                new_mouth_open = random.uniform(MOUTH_OPEN_MIN + 0.2, MOUTH_OPEN_MAX)
+            
+            # 特殊处理：当嘴巴张开较大时，微笑值会影响嘴型
+            # 如果嘴巴张开较大，适当增加微笑值的变化范围
+            if new_mouth_open > 0.3:
+                # 根据开口程度调整微笑程度，避免奇怪表情
+                if random.random() < 0.5:  # 50%概率产生微笑配合开口
+                    new_mouth_smile = random.uniform(0.3, MOUTH_SMILE_MAX)
+                else:  # 50%概率产生小o型或大O型嘴
+                    new_mouth_smile = random.uniform(MOUTH_SMILE_MIN, 0.3)
+            
+            # 确保新表情与当前表情有足够差异
+            smile_diff = abs(new_mouth_smile - current_mouth_smile)
+            open_diff = abs(new_mouth_open - current_mouth_open)
+            
+            # 确保表情变化既不太小也不太大，使变化更自然
+            # 微笑值最小变化0.1，最大变化0.5
+            # 开口值最小变化0.1，最大变化0.4
+            if ((smile_diff > 0.1 and smile_diff < 0.5) or
+                (open_diff > 0.1 and open_diff < 0.4)):
+                break
+            
+            # 防止极端情况下的死循环，尝试10次后强制跳出
+            if '_loop_count' not in locals():
+                _loop_count = 0
+            _loop_count += 1
+            if _loop_count >= 10:
+                logger.warning("随机表情生成10次仍未满足条件，强制接受当前生成的表情")
+                break
+        
+        # 随机生成表情变化持续时间
+        # 延长持续时间，使表情变化更加平滑、缓慢
+        expression_duration = random.uniform(MOUTH_CHANGE_MIN_DURATION, MOUTH_CHANGE_MAX_DURATION)
+        
+        # 随机选择一种缓动函数
+        easing_funcs = [
+            ease_in_out_sine,
+            ease_in_out_sine,    # 平滑流畅
+            ease_in_out_quad,    # 稍慢开始结束，中间快
+            ease_in_out_back,
+        ]
+        # 偏向于使用更自然的缓动函数
+        weights = [0.5, 0.25 ,0.15 ,0.1]
+        easing_func = random.choices(easing_funcs, weights=weights)[0]
+        easing_name = easing_func.__name__
+        
+        logger.info(f"随机表情参数: 当前表情=(微笑:{current_mouth_smile:.2f}, 开口:{current_mouth_open:.2f}), "
+                    f"目标=(微笑:{new_mouth_smile:.2f}, 开口:{new_mouth_open:.2f}), "
+                    f"持续时间={expression_duration:.2f}s, 缓动函数={easing_name}")
+        
+        # 从当前表情到新目标表情的平滑过渡
+        start_time = asyncio.get_event_loop().time()
+        end_time = start_time + expression_duration
+        
+        # 记录起始表情（当前表情）
+        start_mouth_smile = current_mouth_smile
+        start_mouth_open = current_mouth_open
+        
+        while True:
+            current_time = asyncio.get_event_loop().time()
+            if current_time >= end_time:
+                break
+                
+            # 计算进度比例
+            elapsed = current_time - start_time
+            progress = min(1.0, elapsed / expression_duration)
+            
+            # 使用所选缓动函数计算当前值
+            eased_progress = easing_func(progress)
+            
+            # 从起始表情平滑过渡到目标表情
+            smile_value = start_mouth_smile + (new_mouth_smile - start_mouth_smile) * eased_progress
+            open_value = start_mouth_open + (new_mouth_open - start_mouth_open) * eased_progress
+        
+            # 更新当前表情
+            current_mouth_smile = smile_value
+            current_mouth_open = open_value
+            
+            # 使用set模式设置绝对参数值
+            try:
+                await plugin.set_parameter_value(MOUTH_SMILE_PARAMETER, smile_value, mode="set")
+                await plugin.set_parameter_value(MOUTH_OPEN_PARAMETER, open_value, mode="set")
+            except (APIError, ResponseError, ConnectionError) as e:
+                logger.error(f"设置嘴部表情参数时出错: {e}")
+                return False # 出错则中断本次表情变化
+                
+            # 控制更新频率
+            next_step_time = min(current_time + 0.033, end_time)  # 约30fps
+            sleep_time = max(0, next_step_time - asyncio.get_event_loop().time())
+            if sleep_time > 0:
+                await asyncio.sleep(sleep_time)
+        
+        # 确保到达目标表情
+        try:
+            await plugin.set_parameter_value(MOUTH_SMILE_PARAMETER, new_mouth_smile, mode="set")
+            await plugin.set_parameter_value(MOUTH_OPEN_PARAMETER, new_mouth_open, mode="set")
+            current_mouth_smile = new_mouth_smile
+            current_mouth_open = new_mouth_open
+        except (APIError, ResponseError, ConnectionError) as e:
+            logger.error(f"设置最终嘴部表情参数时出错: {e}")
+                
+    except Exception as e:
+        logger.error(f"执行嘴部表情变化周期时发生意外错误: {e}")
+        logger.error(traceback.format_exc())
+        return False
+        
+    return True  # 返回True表示嘴部表情变化周期完成
+
+# --- 嘴部表情任务 ---
+async def mouth_expression_task(plugin: VTSPlugin):
+    """持续运行嘴部表情变化的任务"""
+    global mouth_expression_active
+    mouth_expression_active = True
+    
+    logger.info("开始嘴部表情变化效果...")
+    
+    try:
+        while not shutdown_event.is_set() and mouth_expression_active:
+            # 执行一次完整的嘴部表情变化周期
+            success = await mouth_expression_cycle(plugin)
+            if not success:
+                # 如果嘴部表情变化周期执行失败，暂停一下再继续
+                await asyncio.sleep(1.0)
+    except asyncio.CancelledError:
+        logger.info("嘴部表情任务被取消")
+    except Exception as e:
+        logger.error(f"嘴部表情任务发生错误: {e}")
+        logger.error(traceback.format_exc())
+    finally:
+        mouth_expression_active = False
+        logger.info("嘴部表情变化效果已停止")
+
 # --- 主循环 ---
 async def run_blinking_loop():
     """运行眨眼插件的主循环"""
     global plugin, current_x_position, current_z_position, current_eye_x_position, current_eye_y_position
+    global current_mouth_smile, current_mouth_open
     
     # 重置全局变量
     current_x_position = 0.0
     current_z_position = 0.0
     current_eye_x_position = 0.0
     current_eye_y_position = 0.0
+    current_mouth_smile = 0.0  # 初始设为中性表情
+    current_mouth_open = 0.0   # 初始设为闭嘴
     
     # 初始化任务对象
     breathing_task_obj = None
     body_swing_task_obj = None
+    mouth_expression_task_obj = None
     
     plugin = VTSPlugin(
         plugin_name=PLUGIN_NAME,
@@ -529,6 +695,10 @@ async def run_blinking_loop():
         if not authenticated:
             logger.critical("认证失败，请检查 VTube Studio API 设置或令牌文件。")
             return
+        
+        global start_parameters
+        start_parameters = await plugin.get_available_parameters()
+        
 
         logger.info("认证成功！开始自动眨眼循环。")
         logger.info(f"眨眼间隔: {MIN_INTERVAL:.2f}-{MAX_INTERVAL:.2f} 秒")
@@ -544,9 +714,16 @@ async def run_blinking_loop():
         # 启动身体摇摆任务
         body_swing_task_obj = None
         if BODY_SWING_ENABLED:
-            logger.info(f"启动随机身体摇摆效果 (X参数: {BODY_SWING_X_PARAMETER}, 范围: {BODY_SWING_X_MIN_RANGE} ~ {BODY_SWING_X_MAX_RANGE})")
-            logger.info(f"启动随机上肢旋转效果 (Z参数: {BODY_SWING_Z_PARAMETER}, 范围: {BODY_SWING_Z_MIN_RANGE} ~ {BODY_SWING_Z_MAX_RANGE})")
+            logger.info(f"启动随机身体摇摆效果 (X参数: {BODY_SWING_X_PARAMETER}, 范围: {BODY_SWING_X_MIN} ~ {BODY_SWING_X_MAX})")
+            logger.info(f"启动随机上肢旋转效果 (Z参数: {BODY_SWING_Z_PARAMETER}, 范围: {BODY_SWING_Z_MIN} ~ {BODY_SWING_Z_MAX})")
             body_swing_task_obj = asyncio.create_task(body_swing_task(plugin))
+            
+        # 启动嘴部表情任务
+        mouth_expression_task_obj = None
+        if MOUTH_EXPRESSION_ENABLED:
+            logger.info(f"启动随机嘴部表情效果 (微笑参数: {MOUTH_SMILE_PARAMETER}, 范围: {MOUTH_SMILE_MIN} ~ {MOUTH_SMILE_MAX})")
+            logger.info(f"启动随机嘴部开合效果 (开口参数: {MOUTH_OPEN_PARAMETER}, 范围: {MOUTH_OPEN_MIN} ~ {MOUTH_OPEN_MAX})")
+            mouth_expression_task_obj = asyncio.create_task(mouth_expression_task(plugin))
 
         # 主循环
         while not shutdown_event.is_set():
@@ -606,6 +783,15 @@ async def run_blinking_loop():
                 await body_swing_task_obj  # 等待任务真正结束
             except asyncio.CancelledError:
                 pass
+                
+        # 取消嘴部表情任务
+        if mouth_expression_task_obj and not mouth_expression_task_obj.done():
+            logger.info("正在停止嘴部表情效果...")
+            mouth_expression_task_obj.cancel()
+            try:
+                await mouth_expression_task_obj  # 等待任务真正结束
+            except asyncio.CancelledError:
+                pass
             
         if plugin and plugin.client.is_authenticated:
             logger.info("尝试将模型参数恢复为初始状态...")
@@ -627,11 +813,17 @@ async def run_blinking_loop():
                     await plugin.set_parameter_value(EYE_RIGHT_X_PARAMETER, 0.0, mode="set")
                     await plugin.set_parameter_value(EYE_LEFT_Y_PARAMETER, 0.0, mode="set")
                     await plugin.set_parameter_value(EYE_RIGHT_Y_PARAMETER, 0.0, mode="set")
+                    
+                # 重置嘴部表情参数
+                await plugin.set_parameter_value(MOUTH_SMILE_PARAMETER, 0.0, mode="set")
+                await plugin.set_parameter_value(MOUTH_OPEN_PARAMETER, 0.0, mode="set")
                 
                 current_x_position = 0.0
                 current_z_position = 0.0
                 current_eye_x_position = 0.0
                 current_eye_y_position = 0.0
+                current_mouth_smile = 0.0
+                current_mouth_open = 0.0
                 
                 logger.info("模型参数已尝试恢复。")
             except Exception as e_set:
