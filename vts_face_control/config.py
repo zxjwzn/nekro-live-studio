@@ -7,6 +7,8 @@ class PluginConfig(BaseModel):
     PLUGIN_DEVELOPER: str = "Zaxpris"
     DEFAULT_VTS_ENDPOINT: str = "ws://localhost:8002"
     DEBUG_MODE: bool = Field(default=False, description="是否启用调试模式")
+    RESTORE_DURATION: float = Field(default=1.0, description="恢复参数过渡时间（秒）")
+    CLEANUP_TIMEOUT: float = Field(default=5.0, description="清理操作超时时间（秒）")
 
 
 class BlinkConfig(BaseModel):

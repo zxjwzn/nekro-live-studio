@@ -9,12 +9,20 @@ from typing import Optional
 from vts_client import VTSPlugin, VTSException, ConnectionError, AuthenticationError
 from config import config, VTSModelControlConfig
 from utils.logger import logger, setup_logging
+from animation.manager import AnimationManager
 
 # 全局变量
 shutdown_event = asyncio.Event()
+shutdown_in_progress = False  # 添加标志，防止多次处理关闭信号
 
 def handle_signal(sig, frame):
     """处理信号"""
+    global shutdown_in_progress
+    if shutdown_in_progress:
+        logger.warning(f"已经在处理关闭流程，忽略重复的 {signal.Signals(sig).name} 信号")
+        return
+    
+    shutdown_in_progress = True
     logger.info(f"收到信号 {signal.Signals(sig).name}, 准备关闭...")
     shutdown_event.set()
 
@@ -107,17 +115,31 @@ async def run_controller(config: VTSModelControlConfig):
         logger.info("开始清理...")
         
         if 'manager' in locals():
-            # 停止所有动画
-            await manager.stop_all()
-            
-            # 恢复参数
-            await manager.restore_parameters()
+            try:
+                # 添加超时机制防止清理过程阻塞
+                cleanup_timeout = getattr(config.plugin, 'CLEANUP_TIMEOUT', 5.0)
+                # 停止所有动画
+                await asyncio.wait_for(manager.stop_all(), timeout=cleanup_timeout)
+                
+                # 恢复参数
+                await asyncio.wait_for(manager.restore_parameters(), timeout=cleanup_timeout)
+            except asyncio.TimeoutError:
+                logger.warning(f"清理操作超时 (超过 {cleanup_timeout} 秒)，强制继续关闭流程")
+            except Exception as e:
+                logger.error(f"清理过程中出错: {e}", exc_info=True)
         
         if plugin and plugin.client.is_authenticated:
-            await plugin.disconnect()
-            logger.info("与 VTube Studio 的连接已断开。")
+            try:
+                await asyncio.wait_for(plugin.disconnect(), timeout=2.0)
+                logger.info("与 VTube Studio 的连接已断开。")
+            except asyncio.TimeoutError:
+                logger.warning("断开连接超时，强制继续关闭")
+            except Exception as e:
+                logger.error(f"断开连接时出错: {e}", exc_info=True)
         
         logger.info("插件已关闭。")
+        global shutdown_in_progress
+        shutdown_in_progress = False
 
 def main():
     """主函数"""
