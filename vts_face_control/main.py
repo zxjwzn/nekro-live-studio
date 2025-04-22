@@ -94,7 +94,7 @@ async def run_controller(config: VTSModelControlConfig):
         await manager.store_initial_parameters()
         
         # 启动所有动画
-        await manager.start_all()
+        await manager.start_all(shutdown_event)
         
         # 等待关闭信号
         while not shutdown_event.is_set():

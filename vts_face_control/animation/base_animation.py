@@ -10,14 +10,18 @@ class BaseAnimation(ABC):
         self._task = None
 
     @abstractmethod
-    async def run(self):
-        """执行动画主循环，子类实现"""
+    async def run(self, shutdown_event: asyncio.Event):
+        """执行动画主循环，子类实现
+        
+        Args:
+            shutdown_event: 全局关闭事件，设置时应当优雅退出
+        """
         pass
 
-    def start(self):
+    def start(self, shutdown_event: asyncio.Event):
         """启动动画任务"""
         if self._task is None or self._task.done():
-            self._task = asyncio.create_task(self.run())
+            self._task = asyncio.create_task(self.run(shutdown_event))
 
     async def stop(self):
         """停止动画任务"""
@@ -47,4 +51,4 @@ class BaseAnimation(ABC):
             
             # 确保我们不会继续等待已取消的任务
             if not self._task.done():
-                self.logger.warning(f"停止动画任务超时，继续执行关闭流程")
+                self.logger.warning("停止动画任务超时，继续执行关闭流程")

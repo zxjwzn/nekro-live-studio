@@ -15,73 +15,106 @@ class BodySwingAnimation(BaseAnimation):
         self.current_eye_x = 0.0
         self.current_eye_y = 0.0
 
-    async def run(self):
+    async def run(self, shutdown_event: asyncio.Event):
         self.logger.info("启动身体摇摆效果...")
         try:
-            while True:
-                await self._swing_cycle()
+            while not shutdown_event.is_set():
+                try:
+                    success = await self._swing_cycle()
+                    if not success:
+                        # 如果身体摇摆周期执行失败，暂停一下再继续
+                        await asyncio.sleep(1.0)
+                except Exception as e:
+                    if isinstance(e, asyncio.CancelledError):
+                        self.logger.info("BodySwingAnimation 已取消")
+                        raise
+                    self.logger.error(f"身体摇摆周期出错: {e}")
                 await asyncio.sleep(0)
         except asyncio.CancelledError:
             self.logger.info("BodySwingAnimation 已取消")
             raise
 
     async def _swing_cycle(self):
-        # 随机生成目标位置
-        for _ in range(10):
-            target_x = random.uniform(self.body_cfg.X_MIN, self.body_cfg.X_MAX)
-            target_z = random.uniform(self.body_cfg.Z_MIN, self.body_cfg.Z_MAX)
-            if abs(target_x - self.current_x) > 5.0 or abs(target_z - self.current_z) > 7.5:
-                break
-        duration = random.uniform(self.body_cfg.MIN_DURATION, self.body_cfg.MAX_DURATION)
-        easing = ease_in_out_sine
-        start = asyncio.get_event_loop().time()
-        end = start + duration
-        start_x, start_z = self.current_x, self.current_z
+        """执行一次随机的身体摇摆周期，返回是否成功"""
+        try:
+            # 随机生成目标位置
+            for _ in range(10):
+                target_x = random.uniform(self.body_cfg.X_MIN, self.body_cfg.X_MAX)
+                target_z = random.uniform(self.body_cfg.Z_MIN, self.body_cfg.Z_MAX)
+                if abs(target_x - self.current_x) > 5.0 or abs(target_z - self.current_z) > 7.5:
+                    break
+                    
+            duration = random.uniform(self.body_cfg.MIN_DURATION, self.body_cfg.MAX_DURATION)
+            easing = ease_in_out_sine
+            start = asyncio.get_event_loop().time()
+            end = start + duration
+            start_x, start_z = self.current_x, self.current_z
 
-        # 计算眼睛跟随目标
-        if self.eye_cfg.ENABLED:
-            x_range = self.body_cfg.X_MAX - self.body_cfg.X_MIN
-            z_range = self.body_cfg.Z_MAX - self.body_cfg.Z_MIN
-            norm_x = (target_x - self.body_cfg.X_MIN) / x_range if x_range != 0 else 0
-            norm_z = (target_z - self.body_cfg.Z_MIN) / z_range if z_range != 0 else 0
-            target_eye_x = self.eye_cfg.X_MIN_RANGE + norm_x * (self.eye_cfg.X_MAX_RANGE - self.eye_cfg.X_MIN_RANGE)
-            target_eye_y = self.eye_cfg.Y_MIN_RANGE + norm_z * (self.eye_cfg.Y_MAX_RANGE - self.eye_cfg.Y_MIN_RANGE)
-        else:
-            target_eye_x, target_eye_y = self.current_eye_x, self.current_eye_y
+            # 计算眼睛跟随目标
+            if self.eye_cfg.ENABLED:
+                x_range = self.body_cfg.X_MAX - self.body_cfg.X_MIN
+                z_range = self.body_cfg.Z_MAX - self.body_cfg.Z_MIN
+                norm_x = (target_x - self.body_cfg.X_MIN) / x_range if x_range != 0 else 0
+                norm_z = (target_z - self.body_cfg.Z_MIN) / z_range if z_range != 0 else 0
+                target_eye_x = self.eye_cfg.X_MIN_RANGE + norm_x * (self.eye_cfg.X_MAX_RANGE - self.eye_cfg.X_MIN_RANGE)
+                target_eye_y = self.eye_cfg.Y_MIN_RANGE + norm_z * (self.eye_cfg.Y_MAX_RANGE - self.eye_cfg.Y_MIN_RANGE)
+                start_eye_x = self.current_eye_x
+                start_eye_y = self.current_eye_y
+            else:
+                target_eye_x, target_eye_y = self.current_eye_x, self.current_eye_y
+                start_eye_x, start_eye_y = self.current_eye_x, self.current_eye_y
 
-        while True:
-            now = asyncio.get_event_loop().time()
-            if now >= end:
-                break
-            prog = min(1.0, (now - start) / duration)
-            eased = easing(prog)
-            x = start_x + (target_x - start_x) * eased
-            z = start_z + (target_z - start_z) * eased
-            eye_x = self.current_eye_x + (target_eye_x - self.current_eye_x) * eased
-            eye_y = self.current_eye_y + (target_eye_y - self.current_eye_y) * eased
+            while True:
+                now = asyncio.get_event_loop().time()
+                if now >= end:
+                    break
+                prog = min(1.0, (now - start) / duration)
+                eased = easing(prog)
+                x = start_x + (target_x - start_x) * eased
+                z = start_z + (target_z - start_z) * eased
+                try:
+                    await self.plugin.set_parameter_value(self.body_cfg.X_PARAMETER, x, mode="set")
+                    await self.plugin.set_parameter_value(self.body_cfg.Z_PARAMETER, z, mode="set")
+                    if self.eye_cfg.ENABLED:
+                        eye_x = start_eye_x + (target_eye_x - start_eye_x) * eased
+                        eye_y = start_eye_y + (target_eye_y - start_eye_y) * eased
+                        await self.plugin.set_parameter_value(self.eye_cfg.LEFT_X_PARAMETER, eye_x, mode="set")
+                        await self.plugin.set_parameter_value(self.eye_cfg.RIGHT_X_PARAMETER, eye_x, mode="set")
+                        await self.plugin.set_parameter_value(self.eye_cfg.LEFT_Y_PARAMETER, eye_y, mode="set")
+                        await self.plugin.set_parameter_value(self.eye_cfg.RIGHT_Y_PARAMETER, eye_y, mode="set")
+                        # 更新当前眼睛位置
+                        self.current_eye_x, self.current_eye_y = eye_x, eye_y
+                except Exception as e:
+                    if isinstance(e, asyncio.CancelledError):
+                        raise
+                    self.logger.error(f"身体摇摆出错: {e}")
+                    return False
+                # 更新当前位置
+                self.current_x, self.current_z = x, z
+                await asyncio.sleep(0.033)
+
+            # 确保到达目标
             try:
-                await self.plugin.set_parameter_value(self.body_cfg.X_PARAMETER, x, mode="set")
-                await self.plugin.set_parameter_value(self.body_cfg.Z_PARAMETER, z, mode="set")
+                await self.plugin.set_parameter_value(self.body_cfg.X_PARAMETER, target_x, mode="set")
+                await self.plugin.set_parameter_value(self.body_cfg.Z_PARAMETER, target_z, mode="set")
                 if self.eye_cfg.ENABLED:
-                    await self.plugin.set_parameter_value(self.eye_cfg.LEFT_X_PARAMETER, eye_x, mode="set")
-                    await self.plugin.set_parameter_value(self.eye_cfg.RIGHT_X_PARAMETER, eye_x, mode="set")
-                    await self.plugin.set_parameter_value(self.eye_cfg.LEFT_Y_PARAMETER, eye_y, mode="set")
-                    await self.plugin.set_parameter_value(self.eye_cfg.RIGHT_Y_PARAMETER, eye_y, mode="set")
+                    await self.plugin.set_parameter_value(self.eye_cfg.LEFT_X_PARAMETER, target_eye_x, mode="set")
+                    await self.plugin.set_parameter_value(self.eye_cfg.RIGHT_X_PARAMETER, target_eye_x, mode="set")
+                    await self.plugin.set_parameter_value(self.eye_cfg.LEFT_Y_PARAMETER, target_eye_y, mode="set")
+                    await self.plugin.set_parameter_value(self.eye_cfg.RIGHT_Y_PARAMETER, target_eye_y, mode="set")
+                # 更新最终位置
+                self.current_x, self.current_z = target_x, target_z
+                if self.eye_cfg.ENABLED:
+                    self.current_eye_x, self.current_eye_y = target_eye_x, target_eye_y
             except Exception as e:
                 if isinstance(e, asyncio.CancelledError):
                     raise
-                self.logger.error(f"身体摇摆出错: {e}")
-                return
-            await asyncio.sleep(0.033)
-
-        # 确保到达目标
-        await self.plugin.set_parameter_value(self.body_cfg.X_PARAMETER, target_x, mode="set")
-        await self.plugin.set_parameter_value(self.body_cfg.Z_PARAMETER, target_z, mode="set")
-        if self.eye_cfg.ENABLED:
-            await self.plugin.set_parameter_value(self.eye_cfg.LEFT_X_PARAMETER, target_eye_x, mode="set")
-            await self.plugin.set_parameter_value(self.eye_cfg.RIGHT_X_PARAMETER, target_eye_x, mode="set")
-            await self.plugin.set_parameter_value(self.eye_cfg.LEFT_Y_PARAMETER, target_eye_y, mode="set")
-            await self.plugin.set_parameter_value(self.eye_cfg.RIGHT_Y_PARAMETER, target_eye_y, mode="set")
-        # 更新当前位置
-        self.current_x, self.current_z = target_x, target_z
-        self.current_eye_x, self.current_eye_y = target_eye_x, target_eye_y
+                self.logger.error(f"设置最终身体位置出错: {e}")
+                return False
+                
+            return True
+        except Exception as e:
+            if isinstance(e, asyncio.CancelledError):
+                raise
+            self.logger.error(f"执行身体摇摆周期发生意外错误: {e}")
+            return False

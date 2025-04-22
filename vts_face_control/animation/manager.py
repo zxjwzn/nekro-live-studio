@@ -15,7 +15,7 @@ class AnimationManager:
         self.animations = []
         self.initial_values: Dict[str, float] = {}
         # 平滑恢复时长，可从配置扩展
-        self.restore_duration = getattr(config.plugin, 'RESTORE_DURATION', 1.0)
+        self.restore_duration = getattr(self.config.plugin, 'RESTORE_DURATION', 3.0)
 
     def initialize(self):
         """根据配置实例化需要的动画模块"""
@@ -67,16 +67,19 @@ class AnimationManager:
             except Exception as e:
                 self.logger.warning(f"获取初始参数 {name} 出错: {e}")
 
-    async def start_all(self):
-        """启动所有动画"""
+    async def start_all(self, shutdown_event: asyncio.Event):
+        """启动所有动画
+        
+        Args:
+            shutdown_event: 全局关闭事件，传递给所有动画
+        """
+        self.logger.info(f"启动 {len(self.animations)} 个动画效果...")
         for anim in self.animations:
-            anim.start()
+            anim.start(shutdown_event)
 
     async def stop_all(self):
         """停止所有动画"""
-        # 为每个动画创建单独的任务并设置超时
         per_anim_timeout = 1.0  # 每个动画最多等待1秒
-        
         async def stop_with_timeout(anim, index):
             try:
                 await asyncio.wait_for(anim.stop(), timeout=per_anim_timeout)
@@ -87,13 +90,8 @@ class AnimationManager:
             except Exception as e:
                 self.logger.warning(f"动画 {index} 停止出错: {e}")
                 return False, index, str(e)
-        
         tasks = [stop_with_timeout(anim, i) for i, anim in enumerate(self.animations)]
-        
-        # 等待所有任务完成或超时
         results = await asyncio.gather(*tasks, return_exceptions=True)
-        
-        # 处理结果
         for result in results:
             if isinstance(result, tuple) and len(result) == 3:
                 success, index, error = result
