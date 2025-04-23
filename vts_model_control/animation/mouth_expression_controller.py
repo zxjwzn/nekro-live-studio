@@ -1,6 +1,6 @@
 import asyncio
 import random
-from config import config
+from configs.config import config
 from animation.tweener import Tweener
 from animation.easing import Easing
 from utils.logger import logger
@@ -32,12 +32,13 @@ class MouthExpressionController:
     async def _run(self):
         while not self._stop_event.is_set():
             # 随机生成新表情目标
+            easing_func = Tweener.random_easing()
             new_smile = random.uniform(self.cfg.SMILE_MIN, self.cfg.SMILE_MAX)
             new_open = random.uniform(self.cfg.OPEN_MIN, self.cfg.OPEN_MAX)
             duration = random.uniform(self.cfg.CHANGE_MIN_DURATION, self.cfg.CHANGE_MAX_DURATION)
             logger.info(f"随机表情参数: 当前表情=(微笑:{self._current_smile:.2f}, 开口:{self._current_open:.2f}), "
                     f"目标=(微笑:{new_smile:.2f}, 开口:{new_open:.2f}), "
-                    f"持续时间={duration:.2f}s, 缓动函数={Easing.ease_in_out_sine.__name__}")
+                    f"持续时间={duration:.2f}s, 缓动函数={easing_func.__name__}")
             # 并行动画过渡
             await asyncio.gather(
                 Tweener.tween(
@@ -46,7 +47,7 @@ class MouthExpressionController:
                     self._current_smile,
                     new_smile,
                     duration,
-                    Easing.ease_in_out_sine
+                    easing_func
                 ),
                 Tweener.tween(
                     self.plugin,
@@ -54,7 +55,7 @@ class MouthExpressionController:
                     self._current_open,
                     new_open,
                     duration,
-                    Easing.ease_in_out_sine
+                    easing_func
                 ),
             )
             #确保最终状态

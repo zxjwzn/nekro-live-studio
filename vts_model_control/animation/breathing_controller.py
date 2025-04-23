@@ -1,5 +1,5 @@
 import asyncio
-from config import config
+from configs.config import config
 from animation.tweener import Tweener
 from animation.easing import Easing
 
@@ -30,14 +30,14 @@ class BreathingController:
             # 吸气阶段
             if self._stop_event.is_set():
                 break
-            
+            easing_func = Tweener.random_easing()
             await Tweener.tween(
                 self.plugin,
                 self.cfg.PARAMETER,
                 self.cfg.MIN_VALUE,
                 self.cfg.MAX_VALUE,
                 self.cfg.INHALE_DURATION,
-                Easing.ease_in_out_sine
+                easing_func
             )
             #确保最终状态
             await self.plugin.set_parameter_value(self.cfg.PARAMETER, self.cfg.MAX_VALUE, mode="set")
@@ -49,7 +49,7 @@ class BreathingController:
                 self.cfg.MAX_VALUE,
                 self.cfg.MIN_VALUE,
                 self.cfg.EXHALE_DURATION,
-                Easing.ease_in_out_sine
+                easing_func
             ) 
             #确保最终状态
             await self.plugin.set_parameter_value(self.cfg.PARAMETER, self.cfg.MIN_VALUE, mode="set")

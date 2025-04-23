@@ -1,6 +1,6 @@
 import asyncio
 import random
-from config import config
+from configs.config import config
 from animation.tweener import Tweener
 from animation.easing import Easing
 from utils.logger import logger
@@ -39,30 +39,31 @@ class BodySwingController:
             new_x = random.uniform(self.cfg.X_MIN, self.cfg.X_MAX)
             new_z = random.uniform(self.cfg.Z_MIN, self.cfg.Z_MAX)
             duration = random.uniform(self.cfg.MIN_DURATION, self.cfg.MAX_DURATION)
-
+            eye_x = 0.0
+            eye_y = 0.0
             # 计算眼睛目标值
             if self.eye_cfg.ENABLED:
                 x_norm = (new_x - self.cfg.X_MIN) / (self.cfg.X_MAX - self.cfg.X_MIN) if (self.cfg.X_MAX - self.cfg.X_MIN) != 0 else 0
                 eye_x = self.eye_cfg.X_MIN_RANGE + x_norm * (self.eye_cfg.X_MAX_RANGE - self.eye_cfg.X_MIN_RANGE)
                 z_norm = (new_z - self.cfg.Z_MIN) / (self.cfg.Z_MAX - self.cfg.Z_MIN) if (self.cfg.Z_MAX - self.cfg.Z_MIN) != 0 else 0
                 eye_y = self.eye_cfg.Y_MIN_RANGE + z_norm * (self.eye_cfg.Y_MAX_RANGE - self.eye_cfg.Y_MIN_RANGE)
-
+            easing_func = Tweener.random_easing()
             # 并行动画
             tasks = [
-                Tweener.tween(self.plugin, self.cfg.X_PARAMETER, self._current_x, new_x, duration, Easing.ease_in_out_sine),
-                Tweener.tween(self.plugin, self.cfg.Z_PARAMETER, self._current_z, new_z, duration, Easing.ease_in_out_sine)
+                Tweener.tween(self.plugin, self.cfg.X_PARAMETER, self._current_x, new_x, duration, easing_func),
+                Tweener.tween(self.plugin, self.cfg.Z_PARAMETER, self._current_z, new_z, duration, easing_func)
             ]
             logger.info(f"随机摇摆参数: 当前位置=({self._current_x:.2f}, {self._current_z:.2f}), "
                     f"目标=({new_x:.2f}, {new_z:.2f}), "
-                    f"持续时间={duration:.2f}s, 缓动函数={Easing.ease_in_out_sine.__name__}")
+                    f"持续时间={duration:.2f}s, 缓动函数={easing_func.__name__}")
             if self.eye_cfg.ENABLED:
                 logger.info(f"眼睛跟随: 当前=({self._eye_x:.2f}, {self._eye_y:.2f}), "
                     f"目标=({eye_x:.2f}, {eye_y:.2f})")
                 tasks.extend([
-                    Tweener.tween(self.plugin, self.eye_cfg.LEFT_X_PARAMETER, self._eye_x, eye_x, duration, Easing.ease_in_out_sine),
-                    Tweener.tween(self.plugin, self.eye_cfg.RIGHT_X_PARAMETER, self._eye_x, eye_x, duration, Easing.ease_in_out_sine),
-                    Tweener.tween(self.plugin, self.eye_cfg.LEFT_Y_PARAMETER, self._eye_y, eye_y, duration, Easing.ease_in_out_sine),
-                    Tweener.tween(self.plugin, self.eye_cfg.RIGHT_Y_PARAMETER, self._eye_y, eye_y, duration, Easing.ease_in_out_sine)
+                    Tweener.tween(self.plugin, self.eye_cfg.LEFT_X_PARAMETER, self._eye_x, eye_x, duration, easing_func),
+                    Tweener.tween(self.plugin, self.eye_cfg.RIGHT_X_PARAMETER, self._eye_x, eye_x, duration, easing_func),
+                    Tweener.tween(self.plugin, self.eye_cfg.LEFT_Y_PARAMETER, self._eye_y, eye_y, duration, easing_func),
+                    Tweener.tween(self.plugin, self.eye_cfg.RIGHT_Y_PARAMETER, self._eye_y, eye_y, duration, easing_func)
                 ])
             await asyncio.gather(*tasks)
 

@@ -1,6 +1,6 @@
 import asyncio
 import random
-from config import config
+from configs.config import config
 from animation.tweener import Tweener
 from animation.easing import Easing
 from utils.logger import logger

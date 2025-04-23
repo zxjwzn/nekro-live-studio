@@ -8,11 +8,14 @@ from typing import Optional
 
 from vts_client import VTSPlugin, VTSException, ConnectionError, AuthenticationError
 from utils.logger import logger, setup_logging
-from config import config, VTSModelControlConfig
+from utils.model_loader import ModelLoader
+from configs.config import config, VTSModelControlConfig
 from animation.blink_controller import BlinkController
 from animation.breathing_controller import BreathingController
 from animation.body_swing_controller import BodySwingController
 from animation.mouth_expression_controller import MouthExpressionController
+from animation.tweener import Tweener
+from animation.easing import Easing
 # 信号与关闭事件
 shutdown_event = asyncio.Event()
 
@@ -22,7 +25,6 @@ def handle_signal(sig, frame):
 
 signal.signal(signal.SIGINT, handle_signal)
 signal.signal(signal.SIGTERM, handle_signal)
-
 # 导入控制器模块
 
 
@@ -50,6 +52,7 @@ async def run_main():
         plugin_developer=config.plugin.PLUGIN_DEVELOPER,
         endpoint=config.plugin.DEFAULT_VTS_ENDPOINT
     )
+    model_loader = ModelLoader()
     
     logger.info(f"尝试连接到 VTube Studio: {config.plugin.DEFAULT_VTS_ENDPOINT}")
     
@@ -59,8 +62,9 @@ async def run_main():
             logger.critical("认证失败，请检查 VTube Studio API 设置或令牌文件。")
             return
         
-        logger.info("认证成功！初始化动画控制器...")
-        # 初始化并启动眨眼控制器
+        logger.info("认证成功！获取当前可用参数并过渡到初始动画状态...")
+
+        # 初始化并启动控制器
         controllers = []
         if config.blink.ENABLED:
             blink_ctrl = BlinkController(plugin)
@@ -85,11 +89,16 @@ async def run_main():
         
         # 等待关闭信号
         await shutdown_event.wait()
-
-        # 停止控制器并断开连接
+        logger.info("收到关闭信号，立即停止所有控制器（取消任务，不等待完成）...")
+        # 立即取消所有控制器任务，不等待其 stop 完成
         for ctrl in controllers:
-            await ctrl.stop()
-        logger.info("所有控制器已停止，准备退出。")
+            try:
+                ctrl._stop_event.set()
+                if hasattr(ctrl, '_task') and ctrl._task:
+                    ctrl._task.cancel()
+            except Exception as e:
+                logger.debug(f"取消控制器任务时出错: {e}")
+        # 断开连接
         await plugin.disconnect()
         logger.info("与 VTube Studio 的连接已断开。")
 

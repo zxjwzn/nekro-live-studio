@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field
+from pathlib import Path
 
 
 class PluginConfig(BaseModel):
@@ -7,7 +8,7 @@ class PluginConfig(BaseModel):
     PLUGIN_DEVELOPER: str = "Zaxpris"
     DEFAULT_VTS_ENDPOINT: str = "ws://localhost:8002"
     DEBUG_MODE: bool = Field(default=False, description="是否启用调试模式")
-    RESTORE_DURATION: float = Field(default=1.0, description="恢复参数过渡时间（秒）")
+    RESTORE_DURATION: float = Field(default=3.0, description="恢复参数过渡时间（秒）")
     CLEANUP_TIMEOUT: float = Field(default=5.0, description="清理操作超时时间（秒）")
 
 
@@ -82,10 +83,18 @@ class VTSModelControlConfig(BaseModel):
     body_swing: BodySwingConfig = Field(default_factory=BodySwingConfig)
     eye_follow: EyeFollowConfig = Field(default_factory=EyeFollowConfig)
     mouth_expression: MouthExpressionConfig = Field(default_factory=MouthExpressionConfig)
+    models: list[Path] = Field(default_factory=list, description="模型文件路径列表")
 
 
-# 创建默认配置实例
-config = VTSModelControlConfig()
+# 创建默认配置实例，并支持从JSON文件加载或生成新文件
+CONFIG_FILE: Path = Path(__file__).parent / "config.json"
+if CONFIG_FILE.exists():
+    # 从JSON文件加载配置
+    config = VTSModelControlConfig.model_validate_json(CONFIG_FILE.read_text(encoding="utf-8"))
+else:
+    # 使用默认配置并将其写入JSON文件
+    config = VTSModelControlConfig()
+    CONFIG_FILE.write_text(config.model_dump_json(indent=4), encoding="utf-8")
 
 # 可以通过以下方式使用配置，例如：
 # config.blink.ENABLED
