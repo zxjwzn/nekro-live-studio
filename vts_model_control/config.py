@@ -22,7 +22,7 @@ class BlinkConfig(BaseModel):
     LEFT_PARAMETER: str = Field(default="EyeOpenLeft", description="眨眼控制的参数名")
     RIGHT_PARAMETER: str = Field(default="EyeOpenRight", description="眨眼控制的参数名")
     MIN_VALUE: float = Field(default=0.0, description="眨眼最小值（闭眼）")
-    MAX_VALUE: float = Field(default=0.5, description="眨眼最大值（睁眼）")
+    MAX_VALUE: float = Field(default=1, description="眨眼最大值（睁眼）")
 
 
 class BreathingConfig(BaseModel):

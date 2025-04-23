@@ -9,6 +9,22 @@ from typing import Optional
 from vts_client import VTSPlugin, VTSException, ConnectionError, AuthenticationError
 from utils.logger import logger, setup_logging
 from config import config, VTSModelControlConfig
+from animation.blink_controller import BlinkController
+from animation.breathing_controller import BreathingController
+from animation.body_swing_controller import BodySwingController
+from animation.mouth_expression_controller import MouthExpressionController
+# 信号与关闭事件
+shutdown_event = asyncio.Event()
+
+def handle_signal(sig, frame):
+    logger.info(f"收到信号 {signal.Signals(sig).name}, 准备关闭...")
+    shutdown_event.set()
+
+signal.signal(signal.SIGINT, handle_signal)
+signal.signal(signal.SIGTERM, handle_signal)
+
+# 导入控制器模块
+
 
 async def authenticate_plugin(plugin: VTSPlugin) -> bool:
     """认证VTS插件"""
@@ -44,7 +60,38 @@ async def run_main():
             return
         
         logger.info("认证成功！初始化动画控制器...")
-        #待续
+        # 初始化并启动眨眼控制器
+        controllers = []
+        if config.blink.ENABLED:
+            blink_ctrl = BlinkController(plugin)
+            await blink_ctrl.start()
+            controllers.append(blink_ctrl)
+            logger.info("眨眼控制器已启动。")
+        if config.breathing.ENABLED:
+            breathing_ctrl = BreathingController(plugin)
+            await breathing_ctrl.start()
+            controllers.append(breathing_ctrl)
+            logger.info("呼吸控制器已启动。")
+        if config.body_swing.ENABLED:
+            body_swing_ctrl = BodySwingController(plugin)
+            await body_swing_ctrl.start()
+            controllers.append(body_swing_ctrl)
+            logger.info("身体摇摆控制器已启动。")
+        if config.mouth_expression.ENABLED:
+            mouth_ctrl = MouthExpressionController(plugin)
+            await mouth_ctrl.start()
+            controllers.append(mouth_ctrl)
+            logger.info("嘴部表情控制器已启动。")
+        
+        # 等待关闭信号
+        await shutdown_event.wait()
+
+        # 停止控制器并断开连接
+        for ctrl in controllers:
+            await ctrl.stop()
+        logger.info("所有控制器已停止，准备退出。")
+        await plugin.disconnect()
+        logger.info("与 VTube Studio 的连接已断开。")
 
     except ConnectionError as e:
         logger.critical(f"无法连接到 VTube Studio: {e}")
