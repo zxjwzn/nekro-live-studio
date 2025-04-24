@@ -1,64 +1,70 @@
 {
     "plugin": {
-        "PLUGIN_NAME": "vts模型控制插件",
-        "PLUGIN_DEVELOPER": "Zaxpris",
-        "DEFAULT_VTS_ENDPOINT": "ws://localhost:8002",
-        "DEBUG_MODE": false,
-        "RESTORE_DURATION": 3.0,
-        "CLEANUP_TIMEOUT": 5.0
+        "plugin_name": "vts模型控制插件",
+        "plugin_developer": "Zaxpris",
+        "default_vts_endpoint": "ws://localhost:8002",
+        "debug_mode": false,
+        "restore_duration": 3.0,
+        "cleanup_timeout": 5.0
     },
     "blink": {
-        "ENABLED": true,
-        "MIN_INTERVAL": 2.0,
-        "MAX_INTERVAL": 4.0,
-        "CLOSE_DURATION": 0.15,
-        "OPEN_DURATION": 0.3,
-        "CLOSED_HOLD": 0.05,
-        "LEFT_PARAMETER": "EyeOpenLeft",
-        "RIGHT_PARAMETER": "EyeOpenRight",
-        "MIN_VALUE": 0.0,
-        "MAX_VALUE": 1.0
+        "enabled": true,
+        "min_interval": 2.0,
+        "max_interval": 4.0,
+        "close_duration": 0.15,
+        "open_duration": 0.3,
+        "closed_hold": 0.05,
+        "left_parameter": "EyeOpenLeft",
+        "right_parameter": "EyeOpenRight",
+        "min_value": 0.0,
+        "max_value": 1.0
     },
     "breathing": {
-        "ENABLED": true,
-        "MIN_VALUE": -3.0,
-        "MAX_VALUE": 3.0,
-        "INHALE_DURATION": 2.0,
-        "EXHALE_DURATION": 2.5,
-        "PARAMETER": "FaceAngleY"
+        "enabled": true,
+        "min_value": -3.0,
+        "max_value": 3.0,
+        "inhale_duration": 1.0,
+        "exhale_duration": 2.0,
+        "parameter": "FaceAngleY"
     },
     "body_swing": {
-        "ENABLED": true,
-        "X_MIN": -10.0,
-        "X_MAX": 15.0,
-        "Z_MIN": -10.0,
-        "Z_MAX": 15.0,
-        "MIN_DURATION": 2.0,
-        "MAX_DURATION": 8.0,
-        "X_PARAMETER": "FaceAngleX",
-        "Z_PARAMETER": "FaceAngleZ"
+        "enabled": true,
+        "x_min": -10.0,
+        "x_max": 15.0,
+        "z_min": -10.0,
+        "z_max": 15.0,
+        "min_duration": 2.0,
+        "max_duration": 8.0,
+        "x_parameter": "FaceAngleX",
+        "z_parameter": "FaceAngleZ"
     },
     "eye_follow": {
-        "ENABLED": true,
-        "X_MIN_RANGE": -1.0,
-        "X_MAX_RANGE": 1.0,
-        "Y_MIN_RANGE": -1.0,
-        "Y_MAX_RANGE": 1.0,
-        "LEFT_X_PARAMETER": "EyeLeftX",
-        "RIGHT_X_PARAMETER": "EyeRightX",
-        "LEFT_Y_PARAMETER": "EyeLeftY",
-        "RIGHT_Y_PARAMETER": "EyeRightY"
+        "enabled": true,
+        "x_min_range": -1.0,
+        "x_max_range": 1.0,
+        "y_min_range": -1.0,
+        "y_max_range": 1.0,
+        "left_x_parameter": "EyeLeftX",
+        "right_x_parameter": "EyeRightX",
+        "left_y_parameter": "EyeLeftY",
+        "right_y_parameter": "EyeRightY"
     },
     "mouth_expression": {
-        "ENABLED": true,
-        "SMILE_MIN": 0.1,
-        "SMILE_MAX": 0.7,
-        "OPEN_MIN": 0.1,
-        "OPEN_MAX": 0.7,
-        "CHANGE_MIN_DURATION": 2.0,
-        "CHANGE_MAX_DURATION": 7.0,
-        "SMILE_PARAMETER": "MouthSmile",
-        "OPEN_PARAMETER": "MouthOpen"
+        "enabled": true,
+        "smile_min": 0.1,
+        "smile_max": 0.7,
+        "open_min": 0.1,
+        "open_max": 0.7,
+        "change_min_duration": 2.0,
+        "change_max_duration": 7.0,
+        "smile_parameter": "MouthSmile",
+        "open_parameter": "MouthOpen"
     },
-    "models": ["D:\\Live2d\\小恶魔\\模型文件\\Pink devil\\Pink devil.vtube.json"]
+    "models": [],
+    "api": {
+        "enabled": true,
+        "host": "0.0.0.0",
+        "port": 8080,
+        "timeout": 5.0
+    }
 }

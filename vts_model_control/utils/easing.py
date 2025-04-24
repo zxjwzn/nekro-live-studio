@@ -2,6 +2,11 @@ import math
 
 class Easing:
     @staticmethod
+    def linear(t: float) -> float:
+        """线性缓动函数，直接返回 t"""
+        return t
+
+    @staticmethod
     def ease_in_sine(t):
         return math.sin(1.5707963 * t)
 

@@ -1,0 +1,20 @@
+{
+  "actions": [
+    {
+      "parameter": "EyeOpenLeft",
+      "from": 1.0,
+      "to": 0.0,
+      "duration": 0.15,
+      "delay": 0.0,
+      "easing": "outSine"
+    },
+    {
+      "parameter": "MouthOpen",
+      "to": 0.7,
+      "duration": 0.5,
+      "delay": 0.1,
+      "easing": "inOutQuad"
+    }
+  ],
+  "loop": 0
+}
