@@ -22,13 +22,13 @@ async def lifespan(app: FastAPI):
     animation_manager = AnimationManager()
     # 注册 idle 动画
     if config.blink.enabled:
-        animation_manager.register_idle_controller(blink_mod.BlinkController())
+        animation_manager.register_idle_controller(blink_mod.BlinkController(),False)
     if config.breathing.enabled:
-        animation_manager.register_idle_controller(breath_mod.BreathingController())
+        animation_manager.register_idle_controller(breath_mod.BreathingController(),True)
     if config.body_swing.enabled:
-        animation_manager.register_idle_controller(body_mod.BodySwingController())
+        animation_manager.register_idle_controller(body_mod.BodySwingController(),True)
     if config.mouth_expression.enabled:
-        animation_manager.register_idle_controller(mouth_mod.MouthExpressionController())
+        animation_manager.register_idle_controller(mouth_mod.MouthExpressionController(),False)
     await animation_manager.start()
     try:
         yield
@@ -65,7 +65,7 @@ async def post_animation(req: AnimationRequest):
             "from": action.from_value,
             "to": action.to,
             "duration": action.duration,
-            "delay": action.delay,
+            "startTime": action.startTime,
             "easing": action.easing,
         })
     success = await animation_manager.run_animation(data)

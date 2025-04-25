@@ -5,6 +5,7 @@ from utils.tweener import Tweener
 from utils.easing import Easing
 from utils.logger import logger
 from .base_controller import BaseController
+from typing import List
 
 class BodySwingController(BaseController):
     """身体摇摆控制器，使用 Tweener 实现随机摆动并同步眼睛跟随"""
@@ -16,7 +17,7 @@ class BodySwingController(BaseController):
         self._current_z = 0.0
         self._eye_x = 0.0
         self._eye_y = 0.0
-
+        self.skip_pause = True
     async def run_cycle(self):
         """执行一次身体摇摆及眼睛跟随周期"""
         # 随机生成目标值
@@ -69,4 +70,14 @@ class BodySwingController(BaseController):
         # 更新当前值
         self._current_x, self._current_z = new_x, new_z
         if self.eye_cfg.enabled:
-            self._eye_x, self._eye_y = eye_x, eye_y 
+            self._eye_x, self._eye_y = eye_x, eye_y
+    def get_controlled_parameters(self) -> List[str]:
+        """返回身体摇摆控制器控制的参数列表"""
+        params = [self.cfg.x_parameter, self.cfg.z_parameter]
+        params += [
+            self.eye_cfg.left_x_parameter,
+            self.eye_cfg.right_x_parameter,
+            self.eye_cfg.left_y_parameter,
+            self.eye_cfg.right_y_parameter
+        ]
+        return params 

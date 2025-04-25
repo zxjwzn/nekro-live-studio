@@ -6,13 +6,14 @@ from utils.easing import Easing
 from utils.logger import logger
 from services.plugin import plugin
 from .base_controller import BaseController
+from typing import List
 
 class BlinkController(BaseController):
     """眨眼控制器，使用 Tweener 实现闭眼-睁眼过渡循环"""
     def __init__(self):
         super().__init__()
         self.cfg = config.blink
-
+        self.skip_pause = False
     async def run_cycle(self):
         """执行一次眨眼周期: 闭眼-保持-睁眼-等待"""
         logger.info("开始眨眼周期")
@@ -25,7 +26,7 @@ class BlinkController(BaseController):
                 self.cfg.max_value,
                 self.cfg.min_value,
                 self.cfg.close_duration,
-                Easing.ease_out_sine
+                Easing.out_sine
             ),
             Tweener.tween(
                 self.plugin,
@@ -33,7 +34,7 @@ class BlinkController(BaseController):
                 self.cfg.max_value,
                 self.cfg.min_value,
                 self.cfg.close_duration,
-                Easing.ease_out_sine
+                Easing.out_sine
             ),
         )
         # 保持闭眼
@@ -48,7 +49,7 @@ class BlinkController(BaseController):
                 self.cfg.min_value,
                 self.cfg.max_value,
                 self.cfg.open_duration,
-                Easing.ease_in_sine
+                Easing.in_sine
             ),
             Tweener.tween(
                 self.plugin,
@@ -56,7 +57,7 @@ class BlinkController(BaseController):
                 self.cfg.min_value,
                 self.cfg.max_value,
                 self.cfg.open_duration,
-                Easing.ease_in_sine
+                Easing.in_sine
             ),
         )
         # 确保最终睁眼
@@ -72,3 +73,6 @@ class BlinkController(BaseController):
             await asyncio.wait_for(asyncio.sleep(wait_time), timeout=wait_time + 1)
         except asyncio.TimeoutError:
             pass
+    def get_controlled_parameters(self) -> List[str]:
+        """返回眨眼控制器控制的参数列表"""
+        return [self.cfg.left_parameter, self.cfg.right_parameter]

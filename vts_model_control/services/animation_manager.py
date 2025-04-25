@@ -19,8 +19,9 @@ class AnimationManager:
         self._resume_idle_task = None  # 恢复空闲动画的任务
         self._stop_event = asyncio.Event()
         
-    def register_idle_controller(self, controller):
-        """注册空闲动画控制器"""
+    def register_idle_controller(self, controller, skip_pause: bool = False):
+        """注册空闲动画控制器，可通过 skip_pause=True 设置此控制器在暂停时被跳过"""
+        controller.skip_pause = skip_pause
         self.idle_controllers.append(controller)
         
     async def start(self):
@@ -52,6 +53,9 @@ class AnimationManager:
             
         self.is_idle_running = False
         for ctrl in self.idle_controllers:
+            # 跳过标记为 skip_pause 的控制器
+            if getattr(ctrl, "skip_pause", False):
+                continue
             await ctrl.stop_without_wait()
         logger.info("空闲动画已暂停")
     
@@ -62,6 +66,9 @@ class AnimationManager:
             
         self.is_idle_running = True
         for ctrl in self.idle_controllers:
+            # 跳过标记为 skip_pause 的控制器
+            if getattr(ctrl, "skip_pause", False):
+                continue
             await ctrl.start()
         logger.info("空闲动画已恢复")
     
@@ -93,7 +100,7 @@ class AnimationManager:
         actions = animation_data.get("actions", [])
         loop_count = animation_data.get("loop", 0)
         current_loop = 0
-        
+
         try:
             while current_loop == 0 or current_loop < loop_count:
                 tasks = []
@@ -102,7 +109,7 @@ class AnimationManager:
                     start_val = action.get("from")
                     end_val = action.get("to")
                     duration = action.get("duration", 1.0)
-                    delay = action.get("delay", 0.0)
+                    startTime = action.get("startTime", 0.0)
                     easing_name = action.get("easing", "linear")
                     # 获取起始值
                     if start_val is None:
@@ -111,10 +118,10 @@ class AnimationManager:
                     # 缓动函数
                     easing_func = getattr(Easing, easing_name, None) or Easing.linear
                     # 定义单任务逻辑
-                    async def anim_task_fn(param=parameter, s=start_val, e=end_val, d=duration, ef=easing_func, dl=delay):
+                    async def anim_task_fn(param=parameter, s=start_val, e=end_val, d=duration, ef=easing_func, st=startTime):
                         try:
-                            if dl > 0:
-                                await asyncio.sleep(dl)
+                            if st > 0:
+                                await asyncio.sleep(st)
                             await Tweener.tween(plugin, param, s, e, d, ef)
                         except asyncio.CancelledError:
                             pass
@@ -131,8 +138,3 @@ class AnimationManager:
         except Exception as e:
             logger.error(f"运行动画时出错: {e}")
             return False
-            
-    async def _delayed_animation(self, delay_task, anim_task):
-        """延迟执行动画任务"""
-        await delay_task
-        await anim_task 

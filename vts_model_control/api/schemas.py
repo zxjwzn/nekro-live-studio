@@ -6,7 +6,7 @@ class Action(BaseModel):
     from_value: Optional[float] = Field(None, alias="from")
     to: float
     duration: float = 1.0
-    delay: float = 0.0
+    startTime: float = 0.0
     easing: str = "linear"
 
 class AnimationRequest(BaseModel):

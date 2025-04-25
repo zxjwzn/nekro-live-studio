@@ -5,7 +5,8 @@
         "default_vts_endpoint": "ws://localhost:8002",
         "debug_mode": false,
         "restore_duration": 3.0,
-        "cleanup_timeout": 5.0
+        "cleanup_timeout": 5.0,
+        "pre_animation_duration": 0.5
     },
     "blink": {
         "enabled": true,

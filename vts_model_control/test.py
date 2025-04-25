@@ -8,18 +8,20 @@ animation = {
       "parameter": "EyeOpenLeft",
       "from": 1.0,
       "to": 0.0,
-      "duration": 0.15,
-      "easing": "outSine"
+      "duration": 0.3,
+      "startTime": 0.0,
+      "easing": "out_sine"
     },
     {
-      "parameter": "MouthOpen",
+      "parameter": "MouthSmile",
+      "from": 0.0,
       "to": 0.7,
       "duration": 0.5,
-      "delay": 0.1,
-      "easing": "inOutQuad"
+      "startTime": 0.35,
+      "easing": "in_out_quad"
     }
   ],
-  "loop": 3
+  "loop": 0
 }
 
 response = requests.post("http://localhost:8080/animation", json=animation)

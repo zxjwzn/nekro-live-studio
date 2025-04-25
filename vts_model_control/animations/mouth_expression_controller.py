@@ -5,6 +5,7 @@ from utils.tweener import Tweener
 from utils.easing import Easing
 from utils.logger import logger
 from .base_controller import BaseController
+from typing import List
 
 class MouthExpressionController(BaseController):
     """嘴部表情控制器，使用 Tweener 实现随机嘴部表情变化循环"""
@@ -14,7 +15,7 @@ class MouthExpressionController(BaseController):
         # 当前表情状态
         self._current_smile = 0.0
         self._current_open = 0.0
-
+        self.skip_pause = False
     async def run_cycle(self):
         """执行一次嘴部表情随机过渡"""
         # 随机生成新表情目标
@@ -52,4 +53,7 @@ class MouthExpressionController(BaseController):
         )
         # 更新当前表情状态
         self._current_smile = new_smile
-        self._current_open = new_open 
+        self._current_open = new_open
+    def get_controlled_parameters(self) -> List[str]:
+        """返回嘴部表情控制器控制的参数列表"""
+        return [self.cfg.smile_parameter, self.cfg.open_parameter] 

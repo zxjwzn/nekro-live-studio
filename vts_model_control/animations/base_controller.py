@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from services.plugin import plugin
 from utils.logger import logger
 from vts_client.exceptions import ConnectionError as VTSConnectionError
+from typing import List
 
 class BaseController(ABC):
     """动画控制器基类，负责生命周期管理（start/stop）"""
@@ -10,6 +11,7 @@ class BaseController(ABC):
         self.plugin = plugin
         self._stop_event = asyncio.Event()
         self._task = None
+        self.skip_pause = False
 
     async def start(self):
         """启动动画循环"""
@@ -48,4 +50,9 @@ class BaseController(ABC):
     @abstractmethod
     async def run_cycle(self):
         """子类实现一次动画循环逻辑"""
+        pass
+
+    @abstractmethod
+    def get_controlled_parameters(self) -> List[str]:
+        """返回该控制器控制的参数列表"""
         pass 

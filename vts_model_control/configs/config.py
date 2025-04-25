@@ -16,6 +16,7 @@ class PluginConfig(BaseModel):
     debug_mode: bool = Field(default=False, description="是否启用调试模式")
     restore_duration: float = Field(default=3.0, description="恢复参数过渡时间（秒）")
     cleanup_timeout: float = Field(default=5.0, description="清理操作超时时间（秒）")
+    pre_animation_duration: float = Field(default=0.5, description="动画前置过渡时间（秒）")
 
 
 class BlinkConfig(BaseModel):

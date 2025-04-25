@@ -31,10 +31,9 @@ class Tweener:
     def random_easing():
         """随机从常用缓动函数中选择一个，按权重分布。"""
         funcs = [
-            Easing.ease_in_out_sine,
-            Easing.ease_in_out_sine,
-            Easing.ease_in_out_quad,
-            Easing.ease_in_out_back,
+            Easing.in_out_sine,
+            Easing.in_out_quad,
+            Easing.in_out_back,
         ]
-        weights = [0.5, 0.25, 0.15, 0.1]
+        weights = [0.75, 0.15, 0.1]
         return random.choices(funcs, weights=weights)[0]
