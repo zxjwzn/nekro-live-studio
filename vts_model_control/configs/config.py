@@ -7,7 +7,15 @@ class ApiConfig(BaseModel):
     host: str = Field(default="0.0.0.0", description="API主机地址")
     port: int = Field(default=8080, description="API端口号")
     timeout: float = Field(default=5.0, description="超时时间，超过指定时间无API调用则恢复空闲动画")
-
+    
+class TTSConfig(BaseModel):
+    """文本转语音配置"""
+    enabled: bool = Field(default=True, description="是否启用文本转语音")
+    url: str = Field(default="http://localhost:9872/", description="文本转语音API地址")
+    sovits_model_name: str = Field(default="", description="使用的sovits模型")
+    gpt_model_name: str = Field(default="", description="使用的GPT模型")
+    text_split_method: str = Field(default="凑四句一切", description="文本切分方法") #['不切', '凑四句一切', '凑50字一切', '按中文句号。切', '按英文句号.切', '按标点符号切']
+    
 class PluginConfig(BaseModel):
     """插件基本配置"""
     plugin_name: str = "vts模型控制插件"

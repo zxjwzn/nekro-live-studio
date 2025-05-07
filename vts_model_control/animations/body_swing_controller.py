@@ -32,7 +32,8 @@ class BodySwingController(BaseController):
             eye_x = self.eye_cfg.x_min_range + x_norm * (self.eye_cfg.x_max_range - self.eye_cfg.x_min_range)
             z_range = self.cfg.z_max - self.cfg.z_min
             z_norm = (new_z - self.cfg.z_min) / z_range if z_range else 0
-            eye_y = self.eye_cfg.y_min_range + z_norm * (self.eye_cfg.y_max_range - self.eye_cfg.y_min_range)
+            # 反向映射 z_norm 到垂直方向：使眼睛看向屏幕中心，z 越大时 eye_y 越小
+            eye_y = self.eye_cfg.y_max_range - z_norm * (self.eye_cfg.y_max_range - self.eye_cfg.y_min_range)
         easing_func = Tweener.random_easing()
         # 执行动画
         tasks = [

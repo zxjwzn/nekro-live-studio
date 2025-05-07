@@ -1,0 +1,269 @@
+API documentation
+http://localhost:9872/
+6 API endpoints
+
+Use the gradio_client Python library (docs) or the @gradio/client Javascript package (docs) to query the app via API.
+
+1. Install the client if you don't already have it installed.
+
+copy
+$ pip install gradio_client
+2. Find the API endpoint below corresponding to your desired function in the app. Copy the code snippet, replacing the placeholder values with your own input data. Run the code, that's it!
+
+api_name: /change_choices
+copy
+from gradio_client import Client
+
+client = Client("http://localhost:9872/")
+result = client.predict(
+		api_name="/change_choices"
+)
+print(result)
+Accepts 0 parameters:
+Returns tuple of 2 elements
+[0] Literal['GPT_SoVITS/pretrained_models/gsv-v2final-pretrained/s2G2333k.pth', 'GPT_SoVITS/pretrained_models/gsv-v4-pretrained/s2Gv4.pth', 'GPT_SoVITS/pretrained_models/s2G488k.pth', 'GPT_SoVITS/pretrained_models/s2Gv3.pth', 'SoVITS_weights_v2/井芹仁菜V3_e100_s1800.pth', 'SoVITS_weights_v3/Aris-v3_e2_s324.pth']
+
+The output value that appears in the "SoVITS模型列表" Dropdown component.
+
+[1] Literal['GPT_SoVITS/pretrained_models/gsv-v2final-pretrained/s1bert25hz-5kh-longer-epoch=12-step=369668.ckpt', 'GPT_SoVITS/pretrained_models/s1bert25hz-2kh-longer-epoch=68e-step=50232.ckpt', 'GPT_SoVITS/pretrained_models/s1v3.ckpt', 'GPT_SoVITS/pretrained_models/s1v3.ckpt', 'GPT_weights_v2/井芹仁菜V3-e15.ckpt', 'GPT_weights_v3/Aris-v3-e15.ckpt']
+
+The output value that appears in the "GPT模型列表" Dropdown component.
+
+api_name: /inference
+copy
+from gradio_client import Client, file
+
+client = Client("http://localhost:9872/")
+result = client.predict(
+		text="",
+		text_lang="中文",
+		ref_audio_path=file('https://github.com/gradio-app/gradio/raw/main/test/test_files/audio_sample.wav'),
+		aux_ref_audio_paths=[file('https://github.com/gradio-app/gradio/raw/main/test/test_files/sample_file.pdf')],
+		prompt_text="",
+		prompt_lang="中文",
+		top_k=5,
+		top_p=1,
+		temperature=1,
+		text_split_method="凑四句一切",
+		batch_size=20,
+		speed_factor=1,
+		ref_text_free=False,
+		split_bucket=True,
+		fragment_interval=0.3,
+		seed=-1,
+		keep_random=True,
+		parallel_infer=True,
+		repetition_penalty=1.35,
+		sample_steps="32",
+		super_sampling=False,
+		api_name="/inference"
+)
+print(result)
+Accepts 21 parameters:
+text str Default: ""
+
+The input value that is provided in the "需要合成的文本" Textbox component.
+
+text_lang Literal['中文', '英文', '日文', '粤语', '韩文', '中英混合', '日英混合', '粤英混合', '韩英混合', '多语种混合', '多语种混合(粤语)'] Default: "中文"
+
+The input value that is provided in the "需要合成的文本的语种" Dropdown component.
+
+ref_audio_path filepath Required
+
+The input value that is provided in the "主参考音频(请上传3~10秒内参考音频，超过会报错！)" Audio component.
+
+aux_ref_audio_paths List[filepath] Required
+
+The input value that is provided in the "辅参考音频(可选多个，或不选)" File component.
+
+prompt_text str Default: ""
+
+The input value that is provided in the "主参考音频的文本" Textbox component.
+
+prompt_lang Literal['中文', '英文', '日文', '粤语', '韩文', '中英混合', '日英混合', '粤英混合', '韩英混合', '多语种混合', '多语种混合(粤语)'] Default: "中文"
+
+The input value that is provided in the "主参考音频的语种" Dropdown component.
+
+top_k float Default: 5
+
+The input value that is provided in the "top_k" Slider component.
+
+top_p float Default: 1
+
+The input value that is provided in the "top_p" Slider component.
+
+temperature float Default: 1
+
+The input value that is provided in the "temperature" Slider component.
+
+text_split_method Literal['不切', '凑四句一切', '凑50字一切', '按中文句号。切', '按英文句号.切', '按标点符号切'] Default: "凑四句一切"
+
+The input value that is provided in the "怎么切" Dropdown component.
+
+batch_size float Default: 20
+
+The input value that is provided in the "batch_size" Slider component.
+
+speed_factor float Default: 1
+
+The input value that is provided in the "语速" Slider component.
+
+ref_text_free bool Default: False
+
+The input value that is provided in the "开启无参考文本模式。不填参考文本亦相当于开启。" Checkbox component.
+
+split_bucket bool Default: True
+
+The input value that is provided in the "数据分桶(并行推理时会降低一点计算量)" Checkbox component.
+
+fragment_interval float Default: 0.3
+
+The input value that is provided in the "分段间隔(秒)" Slider component.
+
+seed float Default: -1
+
+The input value that is provided in the "随机种子" Number component.
+
+keep_random bool Default: True
+
+The input value that is provided in the "保持随机" Checkbox component.
+
+parallel_infer bool Default: True
+
+The input value that is provided in the "并行推理" Checkbox component.
+
+repetition_penalty float Default: 1.35
+
+The input value that is provided in the "重复惩罚" Slider component.
+
+sample_steps Literal['4', '8', '16', '32', '64', '128'] Default: "32"
+
+The input value that is provided in the "采样步数(仅对V3/4生效)" Radio component.
+
+super_sampling bool Default: False
+
+The input value that is provided in the "音频超采样(仅对V3生效))" Checkbox component.
+
+Returns tuple of 2 elements
+[0] filepath
+
+The output value that appears in the "输出的语音" Audio component.
+
+[1] float
+
+The output value that appears in the "随机种子" Number component.
+
+api_name: /stop
+copy
+from gradio_client import Client
+
+client = Client("http://localhost:9872/")
+result = client.predict(
+		api_name="/stop"
+)
+print(result)
+Accepts 0 parameters:
+Returns 1 element
+api_name: /change_sovits_weights
+copy
+from gradio_client import Client
+
+client = Client("http://localhost:9872/")
+result = client.predict(
+		sovits_path="GPT_SoVITS/pretrained_models/s2G488k.pth",
+		prompt_language="中文",
+		text_language="中文",
+		api_name="/change_sovits_weights"
+)
+print(result)
+Accepts 3 parameters:
+sovits_path Literal['GPT_SoVITS/pretrained_models/gsv-v2final-pretrained/s2G2333k.pth', 'GPT_SoVITS/pretrained_models/gsv-v4-pretrained/s2Gv4.pth', 'GPT_SoVITS/pretrained_models/s2G488k.pth', 'GPT_SoVITS/pretrained_models/s2Gv3.pth', 'SoVITS_weights_v2/井芹仁菜V3_e100_s1800.pth', 'SoVITS_weights_v3/Aris-v3_e2_s324.pth'] Default: "GPT_SoVITS/pretrained_models/s2G488k.pth"
+
+The input value that is provided in the "SoVITS模型列表" Dropdown component.
+
+prompt_language Literal['中文', '英文', '日文', '粤语', '韩文', '中英混合', '日英混合', '粤英混合', '韩英混合', '多语种混合', '多语种混合(粤语)'] Default: "中文"
+
+The input value that is provided in the "主参考音频的语种" Dropdown component.
+
+text_language Literal['中文', '英文', '日文', '粤语', '韩文', '中英混合', '日英混合', '粤英混合', '韩英混合', '多语种混合', '多语种混合(粤语)'] Default: "中文"
+
+The input value that is provided in the "需要合成的文本的语种" Dropdown component.
+
+Returns tuple of 9 elements
+[0] Literal['中文', '英文', '日文', '粤语', '韩文', '中英混合', '日英混合', '粤英混合', '韩英混合', '多语种混合', '多语种混合(粤语)']
+
+The output value that appears in the "主参考音频的语种" Dropdown component.
+
+[1] Literal['中文', '英文', '日文', '粤语', '韩文', '中英混合', '日英混合', '粤英混合', '韩英混合', '多语种混合', '多语种混合(粤语)']
+
+The output value that appears in the "需要合成的文本的语种" Dropdown component.
+
+[2] str
+
+The output value that appears in the "主参考音频的文本" Textbox component.
+
+[3] Literal['中文', '英文', '日文', '粤语', '韩文', '中英混合', '日英混合', '粤英混合', '韩英混合', '多语种混合', '多语种混合(粤语)']
+
+The output value that appears in the "主参考音频的语种" Dropdown component.
+
+[4] str
+
+The output value that appears in the "需要合成的文本" Textbox component.
+
+[5] Literal['中文', '英文', '日文', '粤语', '韩文', '中英混合', '日英混合', '粤英混合', '韩英混合', '多语种混合', '多语种混合(粤语)']
+
+The output value that appears in the "需要合成的文本的语种" Dropdown component.
+
+[6] Literal['4', '8', '16', '32', '64', '128']
+
+The output value that appears in the "采样步数(仅对V3/4生效)" Radio component.
+
+[7] List[filepath]
+
+The output value that appears in the "辅参考音频(可选多个，或不选)" File component.
+
+[8] bool
+
+The output value that appears in the "开启无参考文本模式。不填参考文本亦相当于开启。" Checkbox component.
+
+api_name: /init_t2s_weights
+copy
+from gradio_client import Client
+
+client = Client("http://localhost:9872/")
+result = client.predict(
+		weights_path="GPT_SoVITS/pretrained_models/s1bert25hz-2kh-longer-epoch=68e-step=50232.ckpt",
+		api_name="/init_t2s_weights"
+)
+print(result)
+Accepts 1 parameter:
+weights_path Literal['GPT_SoVITS/pretrained_models/gsv-v2final-pretrained/s1bert25hz-5kh-longer-epoch=12-step=369668.ckpt', 'GPT_SoVITS/pretrained_models/s1bert25hz-2kh-longer-epoch=68e-step=50232.ckpt', 'GPT_SoVITS/pretrained_models/s1v3.ckpt', 'GPT_SoVITS/pretrained_models/s1v3.ckpt', 'GPT_weights_v2/井芹仁菜V3-e15.ckpt', 'GPT_weights_v3/Aris-v3-e15.ckpt'] Default: "GPT_SoVITS/pretrained_models/s1bert25hz-2kh-longer-epoch=68e-step=50232.ckpt"
+
+The input value that is provided in the "GPT模型列表" Dropdown component.
+
+Returns 1 element
+api_name: /to_cut
+copy
+from gradio_client import Client
+
+client = Client("http://localhost:9872/")
+result = client.predict(
+		text_inp="",
+		how_to_cut="凑四句一切",
+		api_name="/to_cut"
+)
+print(result)
+
+Accepts 2 parameters:
+text_inp str Default: ""
+
+The input value that is provided in the "需要合成的切分前文本" Textbox component.
+
+how_to_cut Literal['不切', '凑四句一切', '凑50字一切', '按中文句号。切', '按英文句号.切', '按标点符号切'] Default: "凑四句一切"
+
+The input value that is provided in the "怎么切" Radio component.
+
+Returns 1 element
+str
+
+The output value that appears in the "切分后文本" Textbox component.
