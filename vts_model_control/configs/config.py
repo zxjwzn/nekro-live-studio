@@ -1,6 +1,5 @@
 from pydantic import BaseModel, Field
 from pathlib import Path
-
 class ApiConfig(BaseModel):
     """API配置"""
     enabled: bool = Field(default=True, description="是否启用API")
@@ -8,14 +7,11 @@ class ApiConfig(BaseModel):
     port: int = Field(default=8080, description="API端口号")
     timeout: float = Field(default=5.0, description="超时时间，超过指定时间无API调用则恢复空闲动画")
     
-class TTSConfig(BaseModel):
+class ChattsConfig(BaseModel):
     """文本转语音配置"""
     enabled: bool = Field(default=True, description="是否启用文本转语音")
     url: str = Field(default="http://localhost:9872/", description="文本转语音API地址")
-    sovits_model_name: str = Field(default="", description="使用的sovits模型")
-    gpt_model_name: str = Field(default="", description="使用的GPT模型")
-    text_split_method: str = Field(default="凑四句一切", description="文本切分方法") #['不切', '凑四句一切', '凑50字一切', '按中文句号。切', '按英文句号.切', '按标点符号切']
-    
+
 class PluginConfig(BaseModel):
     """插件基本配置"""
     plugin_name: str = "vts模型控制插件"
@@ -90,6 +86,14 @@ class MouthExpressionConfig(BaseModel):
     open_parameter: str = Field(default="MouthOpen", description="嘴巴开合控制的参数名")
 
 
+class SpeechSynthesisConfig(BaseModel):
+    """RPG风格语音合成配置"""
+    enabled: bool = Field(default=True, description="是否启用RPG风格语音播放")
+    text_per_second_rate: float = Field(default=5.0, description="每秒播放的字数 (播放速率)")
+    audio_file_path: str = Field(default="D:\\\\QQbot\\\\live2d\\\\vts_face_control_plugin\\\\vts_model_control\\\\resources\\\\audios\\\\vocal_.mp3", description="用于播放的音频文件路径")
+    volume: float = Field(default=0.5, ge=0.0, le=1.0, description="播放音量 (范围 0.0 到 1.0)")
+
+
 class VTSModelControlConfig(BaseModel):
     """VTS面部控制总配置"""
     plugin: PluginConfig = Field(default_factory=PluginConfig)
@@ -98,10 +102,10 @@ class VTSModelControlConfig(BaseModel):
     body_swing: BodySwingConfig = Field(default_factory=BodySwingConfig)
     eye_follow: EyeFollowConfig = Field(default_factory=EyeFollowConfig)
     mouth_expression: MouthExpressionConfig = Field(default_factory=MouthExpressionConfig)
+    speech_synthesis: SpeechSynthesisConfig = Field(default_factory=SpeechSynthesisConfig)
     models: list[Path] = Field(default_factory=list, description="模型文件路径列表")
     api: ApiConfig = Field(default_factory=ApiConfig)
 
-from pathlib import Path  # 确保 Path 可用
 # 配置文件路径
 CONFIG_FILE: Path = Path(__file__).parent / "config.json"
 

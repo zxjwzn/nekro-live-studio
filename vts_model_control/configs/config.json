@@ -61,6 +61,12 @@
         "smile_parameter": "MouthSmile",
         "open_parameter": "MouthOpen"
     },
+    "speech_synthesis": {
+        "enabled": true,
+        "text_per_second_rate": 5.0,
+        "audio_file_path": "D:\\\\QQbot\\\\live2d\\\\vts_face_control_plugin\\\\vts_model_control\\\\resources\\\\audios\\\\vocal_.mp3",
+        "volume": 0.5
+    },
     "models": [],
     "api": {
         "enabled": true,
