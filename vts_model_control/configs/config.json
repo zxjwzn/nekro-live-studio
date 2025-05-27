@@ -6,7 +6,8 @@
         "debug_mode": false,
         "restore_duration": 3.0,
         "cleanup_timeout": 5.0,
-        "pre_animation_duration": 0.5
+        "pre_animation_duration": 0.5,
+        "expression_fade_time": 0.25
     },
     "blink": {
         "enabled": true,

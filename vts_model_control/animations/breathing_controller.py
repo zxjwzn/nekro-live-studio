@@ -1,6 +1,6 @@
 import asyncio
 from configs.config import config
-from utils.tweener import Tweener
+from services.tweener import Tweener
 from utils.easing import Easing
 from .base_controller import BaseController
 from typing import List

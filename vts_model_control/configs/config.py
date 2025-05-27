@@ -21,6 +21,7 @@ class PluginConfig(BaseModel):
     restore_duration: float = Field(default=3.0, description="恢复参数过渡时间（秒）")
     cleanup_timeout: float = Field(default=5.0, description="清理操作超时时间（秒）")
     pre_animation_duration: float = Field(default=0.5, description="动画前置过渡时间（秒）")
+    expression_fade_time: float = Field(default=0.25, description="表情淡入淡出时间（秒），VTube Studio API默认0.5s")
 
 
 class BlinkConfig(BaseModel):

@@ -6,8 +6,8 @@ animation = {
   "actions": [
     {
       "type":"say",
-      "text":["你好!","今天运气怎么样?"],
-      "speeds":[4,10],
+      "text":["你好!","我喜欢你"],
+      "speeds":[3,20],
       "startTime": 0.0
     },
     {
@@ -26,6 +26,12 @@ animation = {
       "duration": 0.5,
       "startTime": 0.1,
       "easing": "inOutQuad"
+    },
+    {
+      "type": "emotion",
+      "name": "2脸红.exp3.json",
+      "duration": 1,
+      "startTime": 0.0
     }
   ],
   "loop": 0

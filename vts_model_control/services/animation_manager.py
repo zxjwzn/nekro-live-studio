@@ -4,7 +4,7 @@ from typing import List, Dict, Any, Optional
 import time
 
 from configs.config import config
-from utils.tweener import Tweener
+from services.tweener import Tweener
 from utils.easing import Easing
 from utils.logger import logger
 from services.plugin import plugin
@@ -105,36 +105,87 @@ class AnimationManager:
             while current_loop == 0 or current_loop < loop_count:
                 tasks = []
                 for action in actions:
-                    parameter = action.get("parameter")
-                    start_val = action.get("from")
-                    end_val = action.get("to")
-                    duration = action.get("duration", 1.0)
-                    startTime = action.get("startTime", 0.0)
-                    easing_name = action.get("easing", "linear")
-                    # 获取起始值
-                    if start_val is None:
-                        param_info = await plugin.get_parameter_value(parameter)
-                        start_val = param_info.get("value", 0.0)
-                    # 缓动函数
-                    easing_func = getattr(Easing, easing_name, None) or Easing.linear
-                    # 定义单任务逻辑
-                    async def anim_task_fn(param=parameter, s=start_val, e=end_val, d=duration, ef=easing_func, st=startTime):
-                        try:
-                            if st > 0:
-                                await asyncio.sleep(st)
-                            await Tweener.tween(plugin, param, s, e, d, ef)
-                        except asyncio.CancelledError:
-                            pass
-                    tasks.append(asyncio.create_task(anim_task_fn()))
-                # 等待所有动画完成
+                    action_type = action.get("type", "animation") # 默认为 animation 类型
+
+                    if action_type == "animation":
+                        parameter = action.get("parameter")
+                        start_val = action.get("from")
+                        end_val = action.get("to")
+                        duration = action.get("duration", 1.0)
+                        startTime = action.get("startTime", 0.0)
+                        easing_name = action.get("easing", "linear")
+                        
+                        if parameter is None:
+                            logger.warning(f"动画动作缺少 'parameter' 字段: {action}")
+                            continue
+
+                        # 获取起始值
+                        if start_val is None:
+                            param_info = await plugin.get_parameter_value(parameter)
+                            start_val = param_info.get("value", 0.0)
+                        # 缓动函数
+                        easing_func = getattr(Easing, easing_name, None) or Easing.linear
+                        
+                        async def anim_task_fn(param=parameter, s=start_val, e=end_val, d=duration, ef=easing_func, st=startTime):
+                            try:
+                                if st > 0:
+                                    await asyncio.sleep(st)
+                                await Tweener.tween(plugin, param, s, e, d, ef)
+                            except asyncio.CancelledError:
+                                pass # 任务被取消时静默处理
+                            except Exception as ex_anim:
+                                logger.error(f"执行参数动画 '{param}' 时出错: {ex_anim}")
+                        tasks.append(asyncio.create_task(anim_task_fn()))
+                    
+                    elif action_type == "emotion":
+                        emotion_name = action.get("name")
+                        # VTube Studio API 使用 expressionFile, 我们在 action 中用 name
+                        duration = action.get("duration", 0.0) # 0 或负数表示永久，除非被后续动作或取消覆盖
+                        startTime = action.get("startTime", 0.0)
+                        fade_time = action.get("fadeTime", config.plugin.expression_fade_time) # 从配置中读取默认表情淡入淡出时间
+
+                        if not emotion_name:
+                            logger.warning(f"表情动作缺少 'name' (expressionFile) 字段: {action}")
+                            continue
+
+                        async def emotion_task_fn(name=emotion_name, dur=duration, st=startTime, ft=fade_time):
+                            try:
+                                if st > 0:
+                                    await asyncio.sleep(st)
+                                
+                                logger.info(f"激活表情: {name}, 淡入时间: {ft}s")
+                                await plugin.activate_expression(expression_file=name, active=True, fade_time=ft)
+
+                                if dur > 0: # 只有当持续时间明确大于0时，才在之后停用
+                                    await asyncio.sleep(dur)
+                                    logger.info(f"根据持续时间停用表情: {name} (原定持续时间: {dur}s), 淡出时间: {ft}s")
+                                    await plugin.activate_expression(expression_file=name, active=False, fade_time=ft)
+                                # 如果 duration <= 0，表情将保持激活状态，直到被其他方式改变或插件停止
+                                    
+                            except asyncio.CancelledError:
+                                logger.info(f"表情任务 ({name}) 被取消。")
+                                # 尝试停用被取消的表情，以防其保持激活状态
+                                try:
+                                    logger.info(f"尝试在取消后停用表情: {name}")
+                                    await plugin.activate_expression(expression_file=name, active=False, fade_time=0) # 快速停用
+                                except Exception as e_cancel_deactivate:
+                                    logger.warning(f"取消表情任务 ({name}) 后尝试停用时出错: {e_cancel_deactivate}")
+                            except Exception as ex_emotion:
+                                logger.error(f"执行表情动作 '{name}' 时出错: {ex_emotion}")
+                        tasks.append(asyncio.create_task(emotion_task_fn()))
+                    
+                    # 可以根据需要添加其他 action_type 的处理，例如 "say"
+                    # elif action_type == "say":
+                    # pass # 在这里添加 say 动作的处理逻辑
+
                 if tasks:
                     await asyncio.gather(*tasks)
-                # 循环次数更新
+                
                 if loop_count > 0:
                     current_loop += 1
-                else:
-                    break
+                else: # loop 为0或负数表示不循环（或只执行一次）
+                    break # 完成一次后退出循环
             return True
         except Exception as e:
-            logger.error(f"运行动画时出错: {e}")
+            logger.error(f"运行动画序列时发生意外错误: {e}")
             return False
