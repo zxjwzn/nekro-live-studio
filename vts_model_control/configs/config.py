@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 from pathlib import Path
+
 class ApiConfig(BaseModel):
     """API配置"""
     enabled: bool = Field(default=True, description="是否启用API")
@@ -95,6 +96,15 @@ class SpeechSynthesisConfig(BaseModel):
     volume: float = Field(default=0.5, ge=0.0, le=1.0, description="播放音量 (范围 0.0 到 1.0)")
 
 
+class BilibiliConfigs(BaseModel):
+    """Bilibili直播配置"""
+    live_room_id: int = Field(default=0, description="Bilibili直播房间ID")
+    sessdata: str = Field(default="", description="Bilibili直播sessdata")
+    bili_jct: str = Field(default="", description="Bilibili直播bili_jct")
+    buvid3: str = Field(default="", description="Bilibili直播buvid3")   
+    dedeuserid: str = Field(default="", description="Bilibili直播dedeuserid 可不填")   
+    ac_time_value: str = Field(default="", description="Bilibili直播ac_time_value 可不填")   
+
 class VTSModelControlConfig(BaseModel):
     """VTS面部控制总配置"""
     plugin: PluginConfig = Field(default_factory=PluginConfig)
@@ -106,6 +116,8 @@ class VTSModelControlConfig(BaseModel):
     speech_synthesis: SpeechSynthesisConfig = Field(default_factory=SpeechSynthesisConfig)
     models: list[Path] = Field(default_factory=list, description="模型文件路径列表")
     api: ApiConfig = Field(default_factory=ApiConfig)
+    bilibili_configs: BilibiliConfigs = Field(default_factory=BilibiliConfigs)
+
 
 # 配置文件路径
 CONFIG_FILE: Path = Path(__file__).parent / "config.json"
