@@ -26,22 +26,32 @@ class AnimationManager:
         
     async def start(self):
         """启动动画管理器"""
+        # 阶段1：初始化管理器状态
         self._stop_event.clear()
         self.is_idle_running = True
+        
+        # 阶段2：启动所有空闲动画控制器
         for ctrl in self.idle_controllers:
             await ctrl.start()
+            
+        # 阶段3：创建恢复空闲动画的检查任务
         self._resume_idle_task = asyncio.create_task(self._check_resume_idle())
         logger.info("动画管理器已启动")
         
     async def stop(self):
         """停止动画管理器"""
+        # 阶段1：设置停止信号
         self._stop_event.set()
+        
+        # 阶段2：取消恢复空闲动画的任务
         if self._resume_idle_task:
             self._resume_idle_task.cancel()
             try:
                 await self._resume_idle_task
             except asyncio.CancelledError:
                 pass
+                
+        # 阶段3：停止所有控制器
         for ctrl in self.idle_controllers:
             await ctrl.stop_without_wait()
         logger.info("动画管理器已停止")
@@ -92,21 +102,26 @@ class AnimationManager:
         Args:
             animation_data: 包含动画信息的字典，格式与animate.json相同
         """
+        # 阶段1：记录API调用时间并暂停空闲动画
         self.last_api_call_time = time.time()
         
         if self.is_idle_running:
             await self.pause_idle_animations()
         
+        # 阶段2：提取动画数据
         actions = animation_data.get("actions", [])
         loop_count = animation_data.get("loop", 0)
         current_loop = 0
 
         try:
+            # 阶段3：执行动画循环
             while current_loop == 0 or current_loop < loop_count:
                 tasks = []
+                # 阶段4：处理每个动作
                 for action in actions:
                     action_type = action.get("type", "animation") # 默认为 animation 类型
 
+                    # 处理参数动画
                     if action_type == "animation":
                         parameter = action.get("parameter")
                         start_val = action.get("from")
@@ -137,10 +152,10 @@ class AnimationManager:
                                 logger.error(f"执行参数动画 '{param}' 时出错: {ex_anim}")
                         tasks.append(asyncio.create_task(anim_task_fn()))
                     
+                    # 处理表情动画
                     elif action_type == "emotion":
                         emotion_name = action.get("name")
-                        # VTube Studio API 使用 expressionFile, 我们在 action 中用 name
-                        duration = action.get("duration", 0.0) # 0 或负数表示永久，除非被后续动作或取消覆盖
+                        duration = action.get("duration", 0.0) # 0或负数表示永久，除非被后续动作或取消覆盖
                         startTime = action.get("startTime", 0.0)
                         fade_time = action.get("fadeTime", config.plugin.expression_fade_time) # 从配置中读取默认表情淡入淡出时间
 
@@ -173,17 +188,15 @@ class AnimationManager:
                             except Exception as ex_emotion:
                                 logger.error(f"执行表情动作 '{name}' 时出错: {ex_emotion}")
                         tasks.append(asyncio.create_task(emotion_task_fn()))
-                    
-                    # 可以根据需要添加其他 action_type 的处理，例如 "say"
-                    # elif action_type == "say":
-                    # pass # 在这里添加 say 动作的处理逻辑
 
+                # 阶段5：等待所有任务完成
                 if tasks:
                     await asyncio.gather(*tasks)
                 
+                # 阶段6：处理循环逻辑
                 if loop_count > 0:
                     current_loop += 1
-                else: # loop 为0或负数表示不循环（或只执行一次）
+                else: # loop为0或负数表示不循环（或只执行一次）
                     break # 完成一次后退出循环
             return True
         except Exception as e:

@@ -200,6 +200,18 @@ tests = ["cloudpickle ; platform_python_implementation == \"CPython\"", "hypothe
 tests-mypy = ["mypy (>=1.11.1) ; platform_python_implementation == \"CPython\" and python_version >= \"3.10\"", "pytest-mypy-plugins ; platform_python_implementation == \"CPython\" and python_version >= \"3.10\""]
 
 [[package]]
+name = "bilibili-api-python"
+version = "17.2.0"
+description = "The fork of module bilibili-api. 哔哩哔哩的各种 API 调用便捷整合（视频、动态、直播等），另外附加一些常用的功能。"
+optional = false
+python-versions = ">=3.9"
+groups = ["main"]
+files = [
+    {file = "bilibili_api_python-17.2.0-py3-none-any.whl", hash = "sha256:4043a638c1350f813a2f58143041b398c7a198af20cbc5271eff870c5d7ca83e"},
+    {file = "bilibili_api_python-17.2.0.tar.gz", hash = "sha256:5b336ea15a65d990e4b8681f5a6decbab249c9155d60351ff8ca85e6352297fb"},
+]
+
+[[package]]
 name = "certifi"
 version = "2025.1.31"
 description = "Python package for providing Mozilla's CA Bundle."
@@ -1494,4 +1506,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10"
-content-hash = "659df800c7ca2874036189cb936b85dfc6619ca71fc1adf11eab0460dc2b13b7"
+content-hash = "8ae70ecb77e37de6aa2915654c8c824d4e1dfbd6c83196c1487bbc97cd384b26"

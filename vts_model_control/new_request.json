@@ -1,0 +1,44 @@
+说话行为
+{
+    "type":"say",
+    "data": 
+    {
+        "text":["你好!","今天运气怎么样?"],
+        "speed":[3,3],
+        "delay": 0.0
+    }
+}
+
+动画行为
+{
+    "type":"animation",
+    "data": [
+        {
+            "parameter": "EyeOpenLeft",
+            "from": 1.0,
+            "to": 0.0,
+            "duration": 0.15,
+            "delay": 0.0,
+            "easing": "outSine"
+        },
+        {
+            "parameter": "MouthOpen",
+            "to": 0.7,
+            "duration": 0.5,
+            "delay": 0.1,
+            "easing": "inOutQuad"   
+        }
+    ]
+}
+
+表情行为
+{
+    "type": "emotion",
+    "data": 
+    {
+        "name": "2生气.exp3.json",
+        "duration": 4,
+        "delay": 0.0
+    }
+}
+
