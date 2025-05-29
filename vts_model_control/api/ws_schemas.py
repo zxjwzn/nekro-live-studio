@@ -1,4 +1,4 @@
-from typing import List, Optional, Union, Dict, Any
+from typing import List, Optional, Union
 from pydantic import BaseModel, Field
 
 class SayData(BaseModel):
@@ -18,8 +18,8 @@ class AnimationParameter(BaseModel):
 
 class EmotionData(BaseModel):
     """表情动作的数据模型"""
-    name: str = Field(description="表情文件名")
-    duration: float = Field(description="表情持续时间(秒)")
+    name: Optional[str] = Field(default=None, description="表情文件名，如果为空则返回所有表情列表")
+    duration: float = Field(default=0.0, description="表情持续时间(秒)")
     delay: float = Field(default=0.0, description="延迟执行的时间(秒)")
 
 class ExecuteData(BaseModel):

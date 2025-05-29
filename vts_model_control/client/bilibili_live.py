@@ -4,6 +4,7 @@ from utils.logger import logger
 from configs.config import config
 from api.schemas import Danmaku
 import json
+import re
 from typing import Dict
 
 # 使用延迟导入避免循环导入
@@ -23,6 +24,7 @@ def get_websocket_manager():
 def parse_danmaku(danmaku_data: Dict) -> Danmaku:
     """
     解析B站弹幕消息，返回Danmaku模型
+    支持解析所有表情并提取URL列表，从文本中去除表情内容
     """
     info = danmaku_data["data"]["info"]
     
@@ -41,35 +43,39 @@ def parse_danmaku(danmaku_data: Dict) -> Danmaku:
     dm_type = extra_data["dm_type"]
     
     # 初始化返回值
-    text = ""
-    url = ""
+    text = content  # 先保留原始内容
+    url_list = []  # 改为列表存储所有表情URL
     
     # 根据类型解析不同内容
     if dm_type == 0:
         if extra_data.get("emots"):
-            # B站内置表情 - 提取第一个表情的URL
+            # B站内置表情 - 提取所有表情的URL
             emots = extra_data["emots"]
             for emot_name, emot_info in emots.items():
                 if "url" in emot_info:
-                    url = emot_info["url"]
-                    text = content  # 保留原始表情文本如 [傲娇]
-                    break
-        else:
-            # 纯文本
-            text = content
+                    url_list.append(emot_info["url"])
+                    # 从文本中去除表情标签，如 [傲娇]
+                    text = text.replace(emot_name, "")
+        
+        # 清理多余的空格
+        text = re.sub(r'\s+', ' ', text.strip())
+        
     elif dm_type == 1:
         # 收藏集表情
         emoticon_info = info[0][13]
         if isinstance(emoticon_info, dict) and "url" in emoticon_info:
-            url = emoticon_info["url"]
-            text = content  # 保留原始表情文本
+            url_list.append(emoticon_info["url"])
+            # 从文本中去除收藏集表情名称
+            # 收藏集表情的名称通常是完整的content内容
+            text = ""  # 收藏集表情通常没有额外文本，直接清空
     
     return Danmaku(
         uid=uid,
         username=username,
         text=text,
         time=timestamp,
-        url=url
+        url=url_list,
+        is_trigget=True,
     )
 
 def parse_interact_word(interact_data: Dict) -> Danmaku:
@@ -99,7 +105,7 @@ def parse_interact_word(interact_data: Dict) -> Danmaku:
         username=username,
         text=text,
         time=timestamp,
-        url="",
+        url=[],  # 用户交互消息没有表情，使用空列表
         is_system=True  # 标记为系统消息
     )
 

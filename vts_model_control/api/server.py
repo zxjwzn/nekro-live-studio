@@ -273,6 +273,29 @@ async def handle_animation_message(websocket: WebSocket, message: AnimationActio
 
 async def handle_emotion_message(websocket: WebSocket, message: EmotionAction):
     """处理表情类型的消息"""
+    # 检查是否只有type，没有name参数（或name为None/空）
+    if not message.data.name:
+        try:
+            # 返回所有表情列表
+            expressions = await plugin.get_expressions()
+            await websocket.send_json({
+                "status": "success", 
+                "message": "表情列表已获取",
+                "data": {
+                    "type": "emotion",
+                    "expressions": expressions
+                }
+            })
+            return
+        except Exception as e:
+            logger.error(f"获取表情列表时发生错误: {e}")
+            await websocket.send_json({
+                "status": "error", 
+                "message": f"获取表情列表失败: {str(e)}"
+            })
+            return
+    
+    # 原有逻辑：添加表情动作到队列
     action = {
         "type": "emotion",
         "name": message.data.name,
