@@ -2,11 +2,21 @@ import asyncio
 from utils.easing import Easing
 import random
 
+
 class Tweener:
     """通用的缓动工具类，用于在指定时间内平滑地更新参数值。"""
+
     @staticmethod
-    async def tween(plugin, param: str, start: float, end: float, duration: float,
-                    easing_func, mode: str = "set", fps: int = 60):
+    async def tween(
+        plugin,
+        param: str,
+        start: float,
+        end: float,
+        duration: float,
+        easing_func,
+        mode: str = "set",
+        fps: int = 60,
+    ):
         """优化后的缓动函数：基于步数循环执行插值，根据实际插件调用耗时动态调整帧间睡眠，尽量在 duration 时间内完成。"""
         loop = asyncio.get_event_loop()
         start_time = loop.time()

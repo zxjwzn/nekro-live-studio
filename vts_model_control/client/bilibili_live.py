@@ -2,7 +2,7 @@ import asyncio
 from bilibili_api import live, Credential
 from utils.logger import logger
 from configs.config import config
-from api.schemas import Danmaku
+from api.ws_schemas import Danmaku
 import json
 import re
 from typing import Dict
@@ -10,16 +10,19 @@ from typing import Dict
 # 使用延迟导入避免循环导入
 _websocket_manager = None
 
+
 def get_websocket_manager():
     """获取WebSocket管理器的延迟导入函数"""
     global _websocket_manager
     if _websocket_manager is None:
         try:
             from services.websocket_manager import manager
+
             _websocket_manager = manager
         except ImportError:
             logger.warning("无法导入WebSocket管理器，弹幕广播功能将不可用")
     return _websocket_manager
+
 
 def parse_danmaku(danmaku_data: Dict) -> Danmaku:
     """
@@ -27,25 +30,25 @@ def parse_danmaku(danmaku_data: Dict) -> Danmaku:
     支持解析所有表情并提取URL列表，从文本中去除表情内容
     """
     info = danmaku_data["data"]["info"]
-    
+
     # 提取基本信息
     content = info[1]  # 弹幕内容
     user_info = info[2]
     username = user_info[1]
     uid = str(user_info[0])
-    
+
     # 提取时间戳 (毫秒转秒)
     timestamp = info[9]["ts"] if info[9] else 0
-    
+
     # 解析extra信息
     extra_str = info[0][15]["extra"]
     extra_data = json.loads(extra_str)
     dm_type = extra_data["dm_type"]
-    
+
     # 初始化返回值
     text = content  # 先保留原始内容
     url_list = []  # 改为列表存储所有表情URL
-    
+
     # 根据类型解析不同内容
     if dm_type == 0:
         if extra_data.get("emots"):
@@ -56,10 +59,10 @@ def parse_danmaku(danmaku_data: Dict) -> Danmaku:
                     url_list.append(emot_info["url"])
                     # 从文本中去除表情标签，如 [傲娇]
                     text = text.replace(emot_name, "")
-        
+
         # 清理多余的空格
-        text = re.sub(r'\s+', ' ', text.strip())
-        
+        text = re.sub(r"\s+", " ", text.strip())
+
     elif dm_type == 1:
         # 收藏集表情
         emoticon_info = info[0][13]
@@ -68,7 +71,7 @@ def parse_danmaku(danmaku_data: Dict) -> Danmaku:
             # 从文本中去除收藏集表情名称
             # 收藏集表情的名称通常是完整的content内容
             text = ""  # 收藏集表情通常没有额外文本，直接清空
-    
+
     return Danmaku(
         uid=uid,
         username=username,
@@ -78,18 +81,19 @@ def parse_danmaku(danmaku_data: Dict) -> Danmaku:
         is_trigget=True,
     )
 
+
 def parse_interact_word(interact_data: Dict) -> Danmaku:
     """
     解析B站用户进入直播间消息，返回Danmaku模型
     """
     data = interact_data["data"]["data"]
-    
+
     # 提取基本信息
     username = data["uname"]
     uid = str(data["uid"])
     msg_type = data["msg_type"]
     timestamp = data["timestamp"]
-    
+
     # 根据msg_type生成不同的文本内容
     if msg_type == 1:  # 进入直播间
         text = f"{username} 进入了直播间"
@@ -99,15 +103,16 @@ def parse_interact_word(interact_data: Dict) -> Danmaku:
         text = f"{username} 分享了直播间"
     else:
         text = f"{username} 与直播间互动"
-    
+
     return Danmaku(
         uid=uid,
         username=username,
         text=text,
         time=timestamp,
         url=[],  # 用户交互消息没有表情，使用空列表
-        is_system=True  # 标记为系统消息
+        is_system=True,  # 标记为系统消息
     )
+
 
 class BilibiliLiveClient:
     """B站直播弹幕客户端"""
@@ -162,12 +167,16 @@ class BilibiliLiveClient:
             """处理弹幕消息"""
             try:
                 danmaku = parse_danmaku(event)
-                logger.info(f"【弹幕】{danmaku.username}({danmaku.uid}): {danmaku.text}")
-                
+                logger.info(
+                    f"【弹幕】{danmaku.username}({danmaku.uid}): {danmaku.text}"
+                )
+
                 # 通过WebSocket广播弹幕消息，只发送给/ws/danmaku路径的客户端
                 websocket_manager = get_websocket_manager()
                 if websocket_manager:
-                    await websocket_manager.broadcast_json_to_path("danmaku", danmaku.model_dump())
+                    await websocket_manager.broadcast_json_to_path(
+                        "danmaku", danmaku.model_dump()
+                    )
             except Exception as e:
                 logger.error(f"处理弹幕消息出错: {e}")
 
@@ -176,12 +185,16 @@ class BilibiliLiveClient:
             """处理用户进入直播间消息"""
             try:
                 interact_danmaku = parse_interact_word(event)
-                logger.info(f"【进入】{interact_danmaku.username}({interact_danmaku.uid}): {interact_danmaku.text}")
-                
+                logger.info(
+                    f"【进入】{interact_danmaku.username}({interact_danmaku.uid}): {interact_danmaku.text}"
+                )
+
                 # 通过WebSocket广播用户进入消息，只发送给/ws/danmaku路径的客户端
                 websocket_manager = get_websocket_manager()
                 if websocket_manager:
-                    await websocket_manager.broadcast_json_to_path("danmaku", interact_danmaku.model_dump())
+                    await websocket_manager.broadcast_json_to_path(
+                        "danmaku", interact_danmaku.model_dump()
+                    )
             except Exception as e:
                 logger.error(f"处理用户进入消息出错: {e}")
 

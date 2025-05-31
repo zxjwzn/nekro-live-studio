@@ -5,8 +5,10 @@ from utils.logger import logger
 from vts_client.exceptions import ConnectionError as VTSConnectionError
 from typing import List
 
+
 class BaseController(ABC):
     """动画控制器基类，负责生命周期管理（start/stop）"""
+
     def __init__(self):
         self.plugin = plugin
         self._stop_event = asyncio.Event()
@@ -26,6 +28,7 @@ class BaseController(ABC):
                 await self._task
             except asyncio.CancelledError:
                 pass
+
     async def stop_without_wait(self):
         """停止动画循环，不等待"""
         self._stop_event.set()
@@ -45,7 +48,9 @@ class BaseController(ABC):
             except Exception as e:
                 # 仅在非关闭阶段记录其他异常
                 if not self._stop_event.is_set():
-                    logger.error(f"{self.__class__.__name__} 执行周期出错: {e}", exc_info=True)
+                    logger.error(
+                        f"{self.__class__.__name__} 执行周期出错: {e}", exc_info=True
+                    )
 
     @abstractmethod
     async def run_cycle(self):
@@ -55,4 +60,4 @@ class BaseController(ABC):
     @abstractmethod
     def get_controlled_parameters(self) -> List[str]:
         """返回该控制器控制的参数列表"""
-        pass 
+        pass

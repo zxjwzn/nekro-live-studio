@@ -1,5 +1,6 @@
 import math
 
+
 class Easing:
     @staticmethod
     def linear(t: float) -> float:

@@ -2,33 +2,46 @@
 VTubeStudio 插件高级接口
 """
 
-import asyncio # noqa: F401
+import asyncio  # noqa: F401
 import logging
 import traceback
 from typing import Any, Callable, Dict, List, Optional, Union, Coroutine  # noqa: F401
 
 from .client import VTSClient
-from .exceptions import AuthenticationError, ConnectionError, APIError, ResponseError # noqa: F401
+from .exceptions import AuthenticationError, ConnectionError, APIError, ResponseError  # noqa: F401
 from .models import (
     # Base
-    VTSRequest, VTSResponse,  # noqa: F401
+    VTSRequest,  # noqa: F401
+    VTSResponse,  # noqa: F401
     # General
-    StatisticsRequest, VTSFolderInfoRequest, APIStateRequest,  # noqa: F401
+    StatisticsRequest,
+    VTSFolderInfoRequest,
+    APIStateRequest,  # noqa: F401
     # Auth
-    AuthenticationTokenRequest, AuthenticationRequest,  # noqa: F401
+    AuthenticationTokenRequest,  # noqa: F401
+    AuthenticationRequest,  # noqa: F401
     # Model
-    CurrentModelRequest, AvailableModelsRequest, ModelLoadRequest, MoveModelRequest,  # noqa: F401
+    CurrentModelRequest,
+    AvailableModelsRequest,
+    ModelLoadRequest,
+    MoveModelRequest,  # noqa: F401
     # Params
-    AvailableParametersRequest, AvailableLive2dParametersRequest, ParameterValueRequest, SetParameterValueRequest,  # noqa: F401
-    ParameterCreationRequest, # noqa: F401
+    AvailableParametersRequest,
+    AvailableLive2dParametersRequest,
+    ParameterValueRequest,
+    SetParameterValueRequest,  # noqa: F401
+    ParameterCreationRequest,  # noqa: F401
     # Expressions
-    ExpressionListRequest, ExpressionActivationRequest,  # noqa: F401
+    ExpressionListRequest,
+    ExpressionActivationRequest,  # noqa: F401
     # Hotkeys
-    HotkeysRequest, TriggerHotkeyRequest,  # noqa: F401
+    HotkeysRequest,
+    TriggerHotkeyRequest,  # noqa: F401
     # Tracking
     FaceFoundRequest,  # noqa: F401
     # Events
-    EventSubscriptionRequest, EventSubscriptionResponse # noqa: F401
+    EventSubscriptionRequest,  # noqa: F401
+    EventSubscriptionResponse,  # noqa: F401
 )
 
 # 设置日志
@@ -37,7 +50,7 @@ logger = logging.getLogger("vts_plugin")
 
 class VTSPlugin:
     """VTubeStudio 插件高级接口
-    
+
     提供更高级别的方法来与 VTube Studio API 交互。
     """
 
@@ -61,16 +74,16 @@ class VTSPlugin:
             plugin_name=plugin_name,
             plugin_developer=plugin_developer,
             plugin_icon=plugin_icon,
-            endpoint=endpoint
+            endpoint=endpoint,
         )
 
     async def connect_and_authenticate(self) -> bool:
         """
         连接到 VTube Studio 并执行认证流程。
-        
+
         Returns:
             bool: 连接和认证是否成功。
-            
+
         Raises:
             ConnectionError: 连接失败。
             AuthenticationError: 认证失败。
@@ -134,18 +147,18 @@ class VTSPlugin:
         return response.data
 
     async def move_model(
-        self, 
-        time_in_seconds: float, 
-        values_are_relative_to_model: bool, 
-        position_x: Optional[float] = None, 
-        position_y: Optional[float] = None, 
-        rotation: Optional[float] = None, 
-        size: Optional[float] = None
+        self,
+        time_in_seconds: float,
+        values_are_relative_to_model: bool,
+        position_x: Optional[float] = None,
+        position_y: Optional[float] = None,
+        rotation: Optional[float] = None,
+        size: Optional[float] = None,
     ) -> Dict[str, Any]:
         """移动当前加载的 VTS 模型。
         未提供的参数将保持不变。
         参考文档中的坐标系说明。
-        
+
         Args:
             time_in_seconds: 移动动画的持续时间 (0 到 2 秒)。0 表示瞬时移动。
             values_are_relative_to_model: 如果为 True，则提供的 X/Y/Rotation/Size 值是相对于当前值的增量；否则为绝对值。
@@ -161,10 +174,10 @@ class VTSPlugin:
             positionX=position_x,
             positionY=position_y,
             rotation=rotation,
-            size=size
+            size=size,
         )
         response = await self.client.send_request(request)
-        return response.data # 成功时为空
+        return response.data  # 成功时为空
 
     # --- Parameter Related Methods ---
 
@@ -172,7 +185,9 @@ class VTSPlugin:
         """获取所有可用的输入参数列表 (包括默认参数和自定义参数)。"""
         response = await self.client.send_request(AvailableParametersRequest())
         # 返回包含默认和自定义参数的完整列表
-        return response.data.get("defaultParameters", []) + response.data.get("customParameters", [])
+        return response.data.get("defaultParameters", []) + response.data.get(
+            "customParameters", []
+        )
 
     async def get_live2d_parameters(self) -> List[Dict[str, Any]]:
         """获取当前加载模型的所有 Live2D 参数及其当前值。"""
@@ -184,26 +199,35 @@ class VTSPlugin:
         response = await self.client.send_request(ParameterValueRequest(parameter_name))
         return response.data
 
-    async def set_parameter_value(self, parameter_name: str, value: float, weight: float = 1.0, mode: str = "set", face_found: bool = True) -> Dict[str, Any]:
+    async def set_parameter_value(
+        self,
+        parameter_name: str,
+        value: float,
+        weight: float = 1.0,
+        mode: str = "set",
+        face_found: bool = True,
+    ) -> Dict[str, Any]:
         """为默认或自定义参数注入数据。
-        
+
         Args:
             parameter_name: 参数 ID。
             value: 要设置的值。
             weight: (仅当 mode='set') 混合权重 (0-1)。1 表示完全覆盖。
             mode: 'set' (设置/覆盖) 或 'add' (添加到当前值)。
         """
-        request = SetParameterValueRequest(parameter_name, value, weight=weight, mode=mode, face_found=face_found)
+        request = SetParameterValueRequest(
+            parameter_name, value, weight=weight, mode=mode, face_found=face_found
+        )
         response = await self.client.send_request(request)
-        return response.data # 成功时为空
+        return response.data  # 成功时为空
 
     async def create_parameter(
-        self, 
-        parameter_name: str, 
-        min_value: float, 
-        max_value: float, 
-        default_value: float, 
-        explanation: Optional[str] = None
+        self,
+        parameter_name: str,
+        min_value: float,
+        max_value: float,
+        default_value: float,
+        explanation: Optional[str] = None,
     ) -> Dict[str, Any]:
         """创建新的自定义输入参数。
 
@@ -214,20 +238,28 @@ class VTSPlugin:
             default_value: 参数映射时的默认值 (-1000000 到 1000000)。
             explanation: (可选) 参数的简短说明 (<256 字符)。
         """
-        request = ParameterCreationRequest(parameter_name, min_value, max_value, default_value, explanation)
+        request = ParameterCreationRequest(
+            parameter_name, min_value, max_value, default_value, explanation
+        )
         response = await self.client.send_request(request)
         return response.data
 
     # --- Expression Related Methods ---
 
-    async def get_expressions(self, expression_file: Optional[str] = None) -> List[Dict[str, Any]]:
+    async def get_expressions(
+        self, expression_file: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """获取当前模型中所有表情或指定表情的状态列表。"""
-        response = await self.client.send_request(ExpressionListRequest(expression_file))
+        response = await self.client.send_request(
+            ExpressionListRequest(expression_file)
+        )
         return response.data.get("expressions", [])
 
-    async def activate_expression(self, expression_file: str, active: bool = True, fade_time: float = 0.25) -> Dict[str, Any]:
+    async def activate_expression(
+        self, expression_file: str, active: bool = True, fade_time: float = 0.25
+    ) -> Dict[str, Any]:
         """激活或停用指定表情文件。
-        
+
         Args:
             expression_file: 表情文件名 (例如 "myExpression.exp3.json")。
             active: True 激活, False 停用。
@@ -235,29 +267,39 @@ class VTSPlugin:
         """
         request = ExpressionActivationRequest(expression_file, active, fade_time)
         response = await self.client.send_request(request)
-        return response.data # 成功时为空
+        return response.data  # 成功时为空
 
     # --- Hotkey Related Methods ---
 
-    async def get_hotkeys(self, model_id: Optional[str] = None, live_2d_item_file_name: Optional[str] = None) -> List[Dict[str, Any]]:
+    async def get_hotkeys(
+        self,
+        model_id: Optional[str] = None,
+        live_2d_item_file_name: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
         """获取当前模型、指定模型或指定 Live2D 物品的可用热键列表。"""
         # 使用修正后的 HotkeysRequest 参数名
-        request = HotkeysRequest(model_id=model_id, live2DItemFileName=live_2d_item_file_name)
+        request = HotkeysRequest(
+            model_id=model_id, live2DItemFileName=live_2d_item_file_name
+        )
         response = await self.client.send_request(request)
         return response.data.get("availableHotkeys", [])
 
-    async def trigger_hotkey(self, hotkey_id: str, item_instance_id: Optional[str] = None) -> Dict[str, Any]:
+    async def trigger_hotkey(
+        self, hotkey_id: str, item_instance_id: Optional[str] = None
+    ) -> Dict[str, Any]:
         """触发指定的热键。
-        
+
         Args:
             hotkey_id: 热键的名称或唯一 ID。
             item_instance_id: (可选) 如果要在 Live2D 物品上触发热键，请提供其物品实例 ID。
         """
         # 使用修正后的 TriggerHotkeyRequest 参数名
-        request = TriggerHotkeyRequest(hotkey_id=hotkey_id, itemInstanceID=item_instance_id)
+        request = TriggerHotkeyRequest(
+            hotkey_id=hotkey_id, itemInstanceID=item_instance_id
+        )
         response = await self.client.send_request(request)
         return response.data
-        
+
     # --- Tracking Related Methods ---
 
     async def is_face_found(self) -> bool:
@@ -267,7 +309,11 @@ class VTSPlugin:
 
     # --- Event Handling Methods ---
 
-    def register_event_handler(self, event_type: str, handler: Callable[[Dict[str, Any]], Coroutine[Any, Any, None]]) -> None:
+    def register_event_handler(
+        self,
+        event_type: str,
+        handler: Callable[[Dict[str, Any]], Coroutine[Any, Any, None]],
+    ) -> None:
         """
         注册事件回调函数 (本地注册)。
         注意：还需要调用 subscribe_event 来实际从 VTube Studio 接收该事件。
@@ -278,7 +324,11 @@ class VTSPlugin:
         """
         self.client.register_event_callback(event_type, handler)
 
-    def unregister_event_handler(self, event_type: str, handler: Callable[[Dict[str, Any]], Coroutine[Any, Any, None]]) -> None:
+    def unregister_event_handler(
+        self,
+        event_type: str,
+        handler: Callable[[Dict[str, Any]], Coroutine[Any, Any, None]],
+    ) -> None:
         """
         取消注册事件回调函数 (本地取消注册)。
         如果不再需要接收该事件，还应调用 unsubscribe_event。
@@ -288,8 +338,10 @@ class VTSPlugin:
             handler: 要取消注册的回调函数。
         """
         self.client.unregister_event_callback(event_type, handler)
-    
-    async def subscribe_event(self, event_name: str, config: Optional[Dict[str, Any]] = None) -> EventSubscriptionResponse:
+
+    async def subscribe_event(
+        self, event_name: str, config: Optional[Dict[str, Any]] = None
+    ) -> EventSubscriptionResponse:
         """
         向 VTube Studio 订阅指定事件。
 
@@ -302,7 +354,9 @@ class VTSPlugin:
         """
         return await self.client.subscribe_to_event(event_name, config)
 
-    async def unsubscribe_event(self, event_name: Optional[str] = None) -> EventSubscriptionResponse:
+    async def unsubscribe_event(
+        self, event_name: Optional[str] = None
+    ) -> EventSubscriptionResponse:
         """
         向 VTube Studio 取消订阅指定事件或所有事件。
 

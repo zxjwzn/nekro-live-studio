@@ -86,12 +86,9 @@ class AnimationManager:
         """定期检查是否需要恢复空闲动画，基于超时等待减少唤醒次数"""
         while True:
             try:
-                # 等待停止事件，超时后 TimeoutError 用于恢复动画
                 await asyncio.wait_for(self._stop_event.wait(), timeout=config.api.timeout)
-                # 收到停止信号，则退出
                 break
             except asyncio.TimeoutError:
-                # 超时，说明最近未有 API 调用
                 if not self.is_idle_running:
                     logger.info(f"{config.api.timeout}秒内没有API调用，恢复空闲动画")
                     await self.resume_idle_animations()

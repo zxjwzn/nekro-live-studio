@@ -56,10 +56,8 @@ async def test_animation_control():
         emotion_action = {
             "type": "emotion",
             "data": {
-                "name": "2脸红.exp3.json",
-                "duration": 1,
-                "delay": 0.0
-            }
+
+            },
         }
         await websocket.send(json.dumps(emotion_action))
         response = await websocket.recv()

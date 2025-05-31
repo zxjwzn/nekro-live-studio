@@ -147,13 +147,11 @@ async def websocket_subtitle_endpoint(websocket: WebSocket):
 # 新增：弹幕WebSocket接口
 @app.websocket("/ws/danmaku")
 async def websocket_danmaku_endpoint(websocket: WebSocket):
-    await websocket_manager.connect(websocket, "danmaku")  # 指定为danmaku路径分组
+    await websocket_manager.connect(websocket, "danmaku")
     logger.info("新的WebSocket客户端连接到 /ws/danmaku")
     try:
         while True:
-            # 这个端点主要用于接收广播，所以大部分时间是等待
-            # 如果需要此端点也接收来自客户端的消息，可以在这里添加 await websocket.receive_text()等逻辑
-            await asyncio.sleep(0.1)  # Keep connection alive, server pushes data
+            await asyncio.sleep(0.1)
     except WebSocketDisconnect:
         websocket_manager.disconnect(websocket)
         logger.info("WebSocket客户端断开连接 /ws/danmaku")
@@ -278,23 +276,21 @@ async def handle_emotion_message(websocket: WebSocket, message: EmotionAction):
         try:
             # 返回所有表情列表
             expressions = await plugin.get_expressions()
-            await websocket.send_json({
-                "status": "success", 
-                "message": "表情列表已获取",
-                "data": {
-                    "type": "emotion",
-                    "expressions": expressions
+            await websocket.send_json(
+                {
+                    "status": "success",
+                    "message": "表情列表已获取",
+                    "data": {"type": "emotion", "expressions": expressions},
                 }
-            })
+            )
             return
         except Exception as e:
             logger.error(f"获取表情列表时发生错误: {e}")
-            await websocket.send_json({
-                "status": "error", 
-                "message": f"获取表情列表失败: {str(e)}"
-            })
+            await websocket.send_json(
+                {"status": "error", "message": f"获取表情列表失败: {str(e)}"}
+            )
             return
-    
+
     # 原有逻辑：添加表情动作到队列
     action = {
         "type": "emotion",
@@ -372,7 +368,9 @@ async def execute_actions(websocket: WebSocket, message: ExecuteAction) -> bool:
                     "actionStartTime": action.get("startTime", 0.0),
                 },
             }
-            asyncio.create_task(websocket_manager.broadcast_json_to_path("subtitles", subtitle_data))
+            asyncio.create_task(
+                websocket_manager.broadcast_json_to_path("subtitles", subtitle_data)
+            )
 
             # 处理语音合成
             if audio_player and config.speech_synthesis.enabled:
