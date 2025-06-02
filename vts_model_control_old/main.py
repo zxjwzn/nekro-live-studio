@@ -1,6 +1,6 @@
-from configs.config import load_config,save_config
-from api.server import app
 import uvicorn
+from api.server import app
+from configs.config import load_config, save_config
 
 
 def main():

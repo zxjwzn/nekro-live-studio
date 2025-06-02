@@ -12,3 +12,6 @@ static/
 
 # PEP 582; used by e.g. github.com/David-OConnor/pyflow
 __pypackages__/
+
+data/
+data/configs/vts_model_control.yaml

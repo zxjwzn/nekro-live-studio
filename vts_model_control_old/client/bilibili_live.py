@@ -1,11 +1,13 @@
 import asyncio
-from bilibili_api import live, Credential
-from utils.logger import logger
-from configs.config import config
-from api.ws_schemas import Danmaku
+import contextlib
 import json
 import re
 from typing import Dict
+
+from api.ws_schemas import Danmaku
+from bilibili_api import Credential, live
+from configs.config import config
+from utils.logger import logger
 
 # 使用延迟导入避免循环导入
 _websocket_manager = None
@@ -131,11 +133,7 @@ class BilibiliLiveClient:
             return
 
         # 如果有凭据信息，则创建Credential对象
-        if (
-            config.bilibili_configs.sessdata
-            and config.bilibili_configs.bili_jct
-            and config.bilibili_configs.buvid3
-        ):
+        if config.bilibili_configs.sessdata and config.bilibili_configs.bili_jct and config.bilibili_configs.buvid3:
             self.credential = Credential(
                 sessdata=config.bilibili_configs.sessdata,
                 bili_jct=config.bilibili_configs.bili_jct,
@@ -167,16 +165,12 @@ class BilibiliLiveClient:
             """处理弹幕消息"""
             try:
                 danmaku = parse_danmaku(event)
-                logger.info(
-                    f"【弹幕】{danmaku.username}({danmaku.uid}): {danmaku.text}"
-                )
+                logger.info(f"【弹幕】{danmaku.username}({danmaku.uid}): {danmaku.text}")
 
                 # 通过WebSocket广播弹幕消息，只发送给/ws/danmaku路径的客户端
                 websocket_manager = get_websocket_manager()
                 if websocket_manager:
-                    await websocket_manager.broadcast_json_to_path(
-                        "danmaku", danmaku.model_dump()
-                    )
+                    await websocket_manager.broadcast_json_to_path("danmaku", danmaku.model_dump())
             except Exception as e:
                 logger.error(f"处理弹幕消息出错: {e}")
 
@@ -185,16 +179,12 @@ class BilibiliLiveClient:
             """处理用户进入直播间消息"""
             try:
                 interact_danmaku = parse_interact_word(event)
-                logger.info(
-                    f"【进入】{interact_danmaku.username}({interact_danmaku.uid}): {interact_danmaku.text}"
-                )
+                logger.info(f"【进入】{interact_danmaku.username}({interact_danmaku.uid}): {interact_danmaku.text}")
 
                 # 通过WebSocket广播用户进入消息，只发送给/ws/danmaku路径的客户端
                 websocket_manager = get_websocket_manager()
                 if websocket_manager:
-                    await websocket_manager.broadcast_json_to_path(
-                        "danmaku", interact_danmaku.model_dump()
-                    )
+                    await websocket_manager.broadcast_json_to_path("danmaku", interact_danmaku.model_dump())
             except Exception as e:
                 logger.error(f"处理用户进入消息出错: {e}")
 
@@ -250,7 +240,7 @@ class BilibiliLiveClient:
             self._running = True
             logger.info(f"正在连接到B站直播间 {self.room_id}...")
             await self.live_danmaku.connect()
-            return True
+            return True  # noqa: TRY300
         except Exception as e:
             logger.error(f"连接B站直播间失败: {e}")
             self._running = False
@@ -290,10 +280,8 @@ class BilibiliLiveClient:
         await self.disconnect()
         if self._task and not self._task.done():
             self._task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._task
-            except asyncio.CancelledError:
-                pass
         self._task = None
         logger.info("已停止B站直播弹幕监听")
 

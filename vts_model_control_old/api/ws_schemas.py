@@ -1,6 +1,7 @@
 from typing import List, Optional, Union
-from pydantic import BaseModel, Field
+
 from configs.config import config
+from pydantic import BaseModel, Field
 
 
 class SayData(BaseModel):
@@ -15,9 +16,7 @@ class AnimationParameter(BaseModel):
     """单个动画参数的数据模型"""
 
     parameter: str = Field(description="VTS模型参数名称")
-    from_value: Optional[float] = Field(
-        default=None, alias="from", description="参数起始值"
-    )
+    from_value: Optional[float] = Field(default=None, alias="from", description="参数起始值")
     to: Optional[float] = Field(default=None, description="参数目标值")
     duration: float = Field(description="动画持续时间(秒)")
     delay: float = Field(default=0.0, description="延迟执行的时间(秒)")
@@ -27,9 +26,7 @@ class AnimationParameter(BaseModel):
 class EmotionData(BaseModel):
     """表情动作的数据模型"""
 
-    name: Optional[str] = Field(
-        default=None, description="表情文件名，如果为空则返回所有表情列表"
-    )
+    name: Optional[str] = Field(default=None, description="表情文件名，如果为空则返回所有表情列表")
     duration: float = Field(default=0.0, description="表情持续时间(秒)")
     delay: float = Field(default=0.0, description="延迟执行的时间(秒)")
 
@@ -75,21 +72,11 @@ class ClearAction(BaseModel):
 
 
 class Danmaku(BaseModel):
-    from_live_room: int = Field(
-        default=config.bilibili_configs.live_room_id, description="消息来源(房间号)"
-    )
+    from_live_room: int = Field(default=config.bilibili_configs.live_room_id, description="消息来源(房间号)")
     uid: str = Field(default="0", description="消息用户ID")
     username: str = Field(default="unknown", description="用户名")
     text: str = Field(default="", description="弹幕内容")
     time: int = Field(default=0, description="弹幕发送时间")
     url: List[str] = Field(default_factory=list, description="弹幕中的表情图片url列表")
-    is_trigget: bool = Field(
-        default=True, description="是否触发LLM (由ws客户端接收并处理)"
-    )
-    is_system: bool = Field(
-        default=False, description="是否作为system身份发送 (由ws客户端接收并处理)"
-    )
-
-
-# 用于区分消息类型的联合类型
-WSMessage = Union[SayAction, AnimationAction, EmotionAction, ExecuteAction, ClearAction]
+    is_trigget: bool = Field(default=True, description="是否触发LLM (由ws客户端接收并处理)")
+    is_system: bool = Field(default=False, description="是否作为system身份发送 (由ws客户端接收并处理)")

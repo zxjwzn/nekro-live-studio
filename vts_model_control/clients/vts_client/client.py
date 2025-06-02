@@ -6,7 +6,6 @@ import asyncio
 import contextlib
 import json
 import logging
-import traceback
 import uuid
 from typing import Any, Callable, Coroutine, Dict, Optional
 
@@ -23,7 +22,7 @@ from .models import (
     AuthenticationRequest,
     AuthenticationTokenRequest,
     EventSubscriptionRequest,
-    EventSubscriptionResponse,  # 添加导入
+    EventSubscriptionResponse,
     VTSRequest,
     VTSResponse,
 )

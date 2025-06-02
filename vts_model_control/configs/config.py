@@ -7,6 +7,7 @@ CONFIG_PATH = Path("./data") / "configs" / "vts_model_control.yaml"
 CONFIG_DIR = Path("./data") / "configs"
 CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
+
 class ConfigBase(BaseModel):
 
     @classmethod
@@ -51,6 +52,7 @@ class ConfigBase(BaseModel):
             return str(placeholder) if placeholder is not None else ""
         return ""
 
+
 class ApiConfig(ConfigBase):
     """API配置"""
 
@@ -75,8 +77,7 @@ class PluginConfig(ConfigBase):
 
     PLUGIN_NAME: str = "vts模型控制插件"
     PLUGIN_DEVELOPER: str = "Zaxpris"
-    DEFAULT_VTS_ENDPOINT: str = "ws://localhost:8002"
-    DEBUG_MODE: bool = Field(default=False, description="是否启用调试模式")
+    VTS_ENDPOINT: str = "ws://localhost:8002"
     RESTORE_DURATION: float = Field(default=3.0, description="恢复参数过渡时间（秒）")
     CLEANUP_TIMEOUT: float = Field(default=5.0, description="清理操作超时时间（秒）")
     PRE_ANIMATION_DURATION: float = Field(
@@ -192,6 +193,7 @@ class BilibiliConfigs(ConfigBase):
 class VTSModelControlConfig(ConfigBase):
     """VTS面部控制总配置"""
 
+    DEBUG_MODE: bool = Field(default=False, description="是否启用调试模式")
     plugin: PluginConfig = Field(default_factory=PluginConfig)
     BLINK: BlinkConfig = Field(default_factory=BlinkConfig)
     BREATHING: BreathingConfig = Field(default_factory=BreathingConfig)
@@ -202,6 +204,7 @@ class VTSModelControlConfig(ConfigBase):
     MODELS: list[Path] = Field(default_factory=list, description="模型文件路径列表")
     API: ApiConfig = Field(default_factory=ApiConfig)
     BILIBILI_CONFIGS: BilibiliConfigs = Field(default_factory=BilibiliConfigs)
+
 
 try:
     config = VTSModelControlConfig.load_config(file_path=CONFIG_PATH)
