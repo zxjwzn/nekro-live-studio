@@ -30,3 +30,52 @@ dependencies = [
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 128
+
+[tool.ruff]
+extend-exclude = []
+ignore = [
+    "E402",
+    "E501",
+    "E722",
+    "B008",
+    "B905",
+    "F401",
+    "TID252",
+    "TRY002",
+    "TRY003",
+    "RUF001",
+    "RUF002",
+    "RUF003",
+    "RUF006",
+    "RUF012",
+    "RUF100",
+    "PGH003",
+    "N801",
+    "A003",
+]
+select = [
+    "F",
+    "E",
+    "I",
+    "B",
+    "A",
+    "COM",
+    "C4",
+    "ISC",
+    "PIE",
+    "PYI",
+    "Q",
+    "RSE",
+    "RET",
+    "SLF",
+    "SIM",
+    "TID",
+    "ARG",
+    "PTH",
+    "PGH",
+    "TRY",
+    "RUF",
+]

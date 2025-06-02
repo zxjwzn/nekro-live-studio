@@ -73,7 +73,9 @@ class APIStateRequest(VTSRequest):
 class AuthenticationTokenRequest(VTSRequest):
     """请求认证令牌"""
 
-    def __init__(self, plugin_name: str, plugin_developer: str, plugin_icon: Optional[str] = None):
+    def __init__(
+        self, plugin_name: str, plugin_developer: str, plugin_icon: Optional[str] = None
+    ):
         data = {"pluginName": plugin_name, "pluginDeveloper": plugin_developer}
         if plugin_icon:
             data["pluginIcon"] = plugin_icon
@@ -130,7 +132,9 @@ class ParameterValueRequest(VTSRequest):
     """获取指定参数（默认或自定义）的值请求"""
 
     def __init__(self, parameter_name: str):
-        super().__init__(message_type="ParameterValueRequest", data={"name": parameter_name})
+        super().__init__(
+            message_type="ParameterValueRequest", data={"name": parameter_name}
+        )
 
 
 @dataclass
@@ -153,7 +157,9 @@ class SetParameterValueRequest(VTSRequest):
             data={
                 "faceFound": face_found,
                 "mode": mode,
-                "parameterValues": [{"id": parameter_name, "value": value, "weight": weight}],
+                "parameterValues": [
+                    {"id": parameter_name, "value": value, "weight": weight}
+                ],
             },
         )
 
@@ -205,7 +211,9 @@ class ExpressionActivationRequest(VTSRequest):
     fade_time: 激活时的淡入时间（秒），范围0-2。停用时使用与激活时相同的淡入时间。
     """
 
-    def __init__(self, expression_file: str, active: bool = True, fade_time: float = 0.25):
+    def __init__(
+        self, expression_file: str, active: bool = True, fade_time: float = 0.25
+    ):
         super().__init__(
             message_type="ExpressionActivationRequest",
             data={
@@ -223,14 +231,18 @@ class HotkeysRequest(VTSRequest):
     live2DItemFileName: 可选，指定 Live2D 物品文件名以获取其热键列表
     """
 
-    def __init__(self, model_id: Optional[str] = None, live2DItemFileName: Optional[str] = None):
+    def __init__(
+        self, model_id: Optional[str] = None, live2DItemFileName: Optional[str] = None
+    ):
         data = {}
         if model_id:
             data["modelID"] = model_id
         elif live2DItemFileName:
             data["live2DItemFileName"] = live2DItemFileName
         # 如果 data 为空，则不传递 data 字段
-        super().__init__(message_type="HotkeysInCurrentModelRequest", data=data if data else None)
+        super().__init__(
+            message_type="HotkeysInCurrentModelRequest", data=data if data else None
+        )
 
 
 @dataclass

@@ -1,1 +1,14 @@
-node_modules
+# python
+venv/
+.venv
+__pycache__/
+*.py[cod]
+*$py.class
+static/
+
+# vscode
+.vscode/*
+!.vscode/launch.json
+
+# PEP 582; used by e.g. github.com/David-OConnor/pyflow
+__pypackages__/

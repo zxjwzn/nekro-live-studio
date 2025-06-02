@@ -6,29 +6,34 @@ VTubeStudio 客户端异常类
 class VTSException(Exception):
     """VTubeStudio 客户端基础异常类"""
 
+    pass
 
 
-class VTSConnectionError(VTSException):
+class ConnectionError(VTSException):
     """连接错误"""
 
+    pass
 
 
-class VTSAuthenticationError(VTSException):
+class AuthenticationError(VTSException):
     """认证错误"""
 
+    pass
 
 
-class VTSRequestError(VTSException):
+class RequestError(VTSException):
     """请求错误"""
 
+    pass
 
 
-class VTSResponseError(VTSException):
+class ResponseError(VTSException):
     """响应错误"""
 
+    pass
 
 
-class VTSAPIError(VTSException):
+class APIError(VTSException):
     """API错误"""
 
     def __init__(self, error_message, error_id=None):
