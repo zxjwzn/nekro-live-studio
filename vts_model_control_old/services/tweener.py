@@ -1,6 +1,7 @@
 import asyncio
-from utils.easing import Easing
 import random
+
+from utils.easing import Easing
 
 
 class Tweener:

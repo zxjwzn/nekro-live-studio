@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Literal
 
 import yaml
 from pydantic import BaseModel, Field
@@ -78,6 +79,7 @@ class PluginConfig(ConfigBase):
     PLUGIN_NAME: str = "vts模型控制插件"
     PLUGIN_DEVELOPER: str = "Zaxpris"
     VTS_ENDPOINT: str = "ws://localhost:8002"
+    AUTHENTICATION_TOKEN: str = ""
     RESTORE_DURATION: float = Field(default=3.0, description="恢复参数过渡时间（秒）")
     CLEANUP_TIMEOUT: float = Field(default=5.0, description="清理操作超时时间（秒）")
     PRE_ANIMATION_DURATION: float = Field(
@@ -182,7 +184,7 @@ class SpeechSynthesisConfig(ConfigBase):
 class BilibiliConfigs(ConfigBase):
     """Bilibili直播配置"""
 
-    LIVE_ROOM_ID: int = Field(default=0, description="Bilibili直播房间ID")
+    LIVE_ROOM_ID: str = Field(default="0", description="Bilibili直播房间ID")
     SESSDATA: str = Field(default="", description="Bilibili直播 sessdata")
     BILI_JCT: str = Field(default="", description="Bilibili直播 bili_jct")
     BUVID3: str = Field(default="", description="Bilibili直播 buvid3")
@@ -193,8 +195,11 @@ class BilibiliConfigs(ConfigBase):
 class VTSModelControlConfig(ConfigBase):
     """VTS面部控制总配置"""
 
-    DEBUG_MODE: bool = Field(default=False, description="是否启用调试模式")
-    plugin: PluginConfig = Field(default_factory=PluginConfig)
+    LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(
+        default="INFO",
+        title="应用日志级别",
+    )
+    PLUGIN: PluginConfig = Field(default_factory=PluginConfig)
     BLINK: BlinkConfig = Field(default_factory=BlinkConfig)
     BREATHING: BreathingConfig = Field(default_factory=BreathingConfig)
     BODY_SWING: BodySwingConfig = Field(default_factory=BodySwingConfig)

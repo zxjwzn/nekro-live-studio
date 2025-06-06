@@ -3,8 +3,9 @@ VTubeStudio 插件高级接口
 """
 
 import contextlib
-import logging
 from typing import Any, Callable, Coroutine, Dict, List, Optional  # noqa: F401
+
+from utils.logger import logger
 
 from .client import VTSClient
 from .models import (
@@ -27,9 +28,6 @@ from .models import (
     TriggerHotkeyRequest,
     VTSFolderInfoRequest,
 )
-
-# 设置日志
-logger = logging.getLogger("vts_plugin")
 
 
 class VTSPlugin:
@@ -147,7 +145,7 @@ class VTSPlugin:
             rotation: 目标旋转角度 (-360 到 360)。
             size: 目标尺寸 (-100 到 100)。
         """
-        # 使用修正后的 MoveModelRequest 构造函数
+        
         request = MoveModelRequest(
             time_in_seconds=time_in_seconds,
             values_are_relative_to_model=values_are_relative_to_model,
