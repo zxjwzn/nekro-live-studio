@@ -1,11 +1,13 @@
 import asyncio
 import random
+from typing import List
+
 from configs.config import config
 from services.tweener import Tweener
 from utils.easing import Easing
 from utils.logger import logger
+
 from .base_controller import BaseController
-from typing import List
 
 
 class BodySwingController(BaseController):
@@ -32,15 +34,11 @@ class BodySwingController(BaseController):
         if self.eye_cfg.enabled:
             x_range = self.cfg.x_max - self.cfg.x_min
             x_norm = (new_x - self.cfg.x_min) / x_range if x_range else 0
-            eye_x = self.eye_cfg.x_min_range + x_norm * (
-                self.eye_cfg.x_max_range - self.eye_cfg.x_min_range
-            )
+            eye_x = self.eye_cfg.x_min_range + x_norm * (self.eye_cfg.x_max_range - self.eye_cfg.x_min_range)
             z_range = self.cfg.z_max - self.cfg.z_min
             z_norm = (new_z - self.cfg.z_min) / z_range if z_range else 0
             # 反向映射 z_norm 到垂直方向：使眼睛看向屏幕中心，z 越大时 eye_y 越小
-            eye_y = self.eye_cfg.y_max_range - z_norm * (
-                self.eye_cfg.y_max_range - self.eye_cfg.y_min_range
-            )
+            eye_y = self.eye_cfg.y_max_range - z_norm * (self.eye_cfg.y_max_range - self.eye_cfg.y_min_range)
         easing_func = Tweener.random_easing()
         # 执行动画
         tasks = [
@@ -63,12 +61,10 @@ class BodySwingController(BaseController):
         ]
         logger.info(
             f"随机摇摆参数: 当前位置=({self._current_x:.2f}, {self._current_z:.2f}), 目标=({new_x:.2f}, {new_z:.2f}), "
-            f"持续时间={duration:.2f}s, 缓动函数={easing_func.__name__}"
+            f"持续时间={duration:.2f}s, 缓动函数={easing_func.__name__}",
         )
         if self.eye_cfg.enabled:
-            logger.info(
-                f"眼睛跟随: 当前=({self._eye_x:.2f}, {self._eye_y:.2f}), 目标=({eye_x:.2f}, {eye_y:.2f})"
-            )
+            logger.info(f"眼睛跟随: 当前=({self._eye_x:.2f}, {self._eye_y:.2f}), 目标=({eye_x:.2f}, {eye_y:.2f})")
             tasks.extend(
                 [
                     Tweener.tween(
@@ -103,7 +99,7 @@ class BodySwingController(BaseController):
                         duration,
                         easing_func,
                     ),
-                ]
+                ],
             )
         await asyncio.gather(*tasks)
         # 确保最终位置
@@ -114,19 +110,11 @@ class BodySwingController(BaseController):
         if self.eye_cfg.enabled:
             final_tasks.extend(
                 [
-                    self.plugin.set_parameter_value(
-                        self.eye_cfg.left_x_parameter, eye_x, mode="set"
-                    ),
-                    self.plugin.set_parameter_value(
-                        self.eye_cfg.right_x_parameter, eye_x, mode="set"
-                    ),
-                    self.plugin.set_parameter_value(
-                        self.eye_cfg.left_y_parameter, eye_y, mode="set"
-                    ),
-                    self.plugin.set_parameter_value(
-                        self.eye_cfg.right_y_parameter, eye_y, mode="set"
-                    ),
-                ]
+                    self.plugin.set_parameter_value(self.eye_cfg.left_x_parameter, eye_x, mode="set"),
+                    self.plugin.set_parameter_value(self.eye_cfg.right_x_parameter, eye_x, mode="set"),
+                    self.plugin.set_parameter_value(self.eye_cfg.left_y_parameter, eye_y, mode="set"),
+                    self.plugin.set_parameter_value(self.eye_cfg.right_y_parameter, eye_y, mode="set"),
+                ],
             )
         await asyncio.gather(*final_tasks)
         # 更新当前值

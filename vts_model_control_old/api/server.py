@@ -1,32 +1,34 @@
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse
-import os
-from typing import List, Optional, Dict, Any
-import json
-from configs.config import config
-from services.animation_manager import AnimationManager
-from services.plugin import plugin
-from .ws_schemas import (
-    SayAction,
-    AnimationAction,
-    EmotionAction,
-    ExecuteAction,
-    ClearAction,
-)
-from services.audio_player import AudioManager
-from services.websocket_manager import manager as websocket_manager
-from contextlib import asynccontextmanager
 import asyncio
+import json
+import os
+from contextlib import asynccontextmanager
+from typing import Any, Dict, List, Optional
+
 import animations.blink_controller as blink_mod
-import animations.breathing_controller as breath_mod
 import animations.body_swing_controller as body_mod
+import animations.breathing_controller as breath_mod
 import animations.mouth_expression_controller as mouth_mod
-from utils.logger import setup_logging, logger
 
 # 导入B站直播弹幕监听模块
 from client.bilibili_live import start_bilibili_live, stop_bilibili_live
+from configs.config import config
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from services.animation_manager import AnimationManager
+from services.audio_player import AudioManager
+from services.plugin import plugin
+from services.websocket_manager import manager as websocket_manager
+from utils.logger import logger, setup_logging
+
+from .ws_schemas import (
+    AnimationAction,
+    ClearAction,
+    EmotionAction,
+    ExecuteAction,
+    SayAction,
+)
 
 
 @asynccontextmanager
@@ -45,15 +47,11 @@ async def lifespan(app: FastAPI):
     if config.blink.enabled:
         animation_manager.register_idle_controller(blink_mod.BlinkController(), False)
     if config.breathing.enabled:
-        animation_manager.register_idle_controller(
-            breath_mod.BreathingController(), True
-        )
+        animation_manager.register_idle_controller(breath_mod.BreathingController(), True)
     if config.body_swing.enabled:
         animation_manager.register_idle_controller(body_mod.BodySwingController(), True)
     if config.mouth_expression.enabled:
-        animation_manager.register_idle_controller(
-            mouth_mod.MouthExpressionController(), False
-        )
+        animation_manager.register_idle_controller(mouth_mod.MouthExpressionController(), False)
     await animation_manager.start()
     logger.info("AnimationManager 已启动并注册idle动画。")
 
@@ -75,9 +73,7 @@ async def lifespan(app: FastAPI):
 
     # 阶段4：启动B站直播弹幕监听
     if config.bilibili_configs.live_room_id != 0:
-        logger.info(
-            f"正在启动B站直播弹幕监听，房间ID: {config.bilibili_configs.live_room_id}"
-        )
+        logger.info(f"正在启动B站直播弹幕监听，房间ID: {config.bilibili_configs.live_room_id}")
         try:
             await start_bilibili_live()
         except Exception as e:
@@ -193,35 +189,23 @@ async def websocket_animate_control(websocket: WebSocket):
                     message = ExecuteAction.model_validate(message_json)
                     success = await execute_actions(websocket, message)
                     if success:
-                        await websocket.send_json(
-                            {"status": "success", "message": "Actions executed"}
-                        )
+                        await websocket.send_json({"status": "success", "message": "Actions executed"})
                     else:
-                        await websocket.send_json(
-                            {"status": "error", "message": "Failed to execute actions"}
-                        )
+                        await websocket.send_json({"status": "error", "message": "Failed to execute actions"})
 
                 elif message_type == "clear":
                     message = ClearAction.model_validate(message_json)
                     ws_action_queues[websocket] = []
-                    await websocket.send_json(
-                        {"status": "success", "message": "Action queue cleared"}
-                    )
+                    await websocket.send_json({"status": "success", "message": "Action queue cleared"})
 
                 else:
-                    await websocket.send_json(
-                        {"status": "error", "message": f"未知消息类型: {message_type}"}
-                    )
+                    await websocket.send_json({"status": "error", "message": f"未知消息类型: {message_type}"})
 
             except json.JSONDecodeError:
-                await websocket.send_json(
-                    {"status": "error", "message": "无效的JSON格式"}
-                )
+                await websocket.send_json({"status": "error", "message": "无效的JSON格式"})
             except Exception as e:
                 logger.error(f"处理WebSocket消息时发生错误: {e}")
-                await websocket.send_json(
-                    {"status": "error", "message": f"处理消息时出错: {str(e)}"}
-                )
+                await websocket.send_json({"status": "error", "message": f"处理消息时出错: {str(e)}"})
 
     except WebSocketDisconnect:
         logger.info("WebSocket客户端断开连接 /ws/animate_control")
@@ -286,9 +270,7 @@ async def handle_emotion_message(websocket: WebSocket, message: EmotionAction):
             return
         except Exception as e:
             logger.error(f"获取表情列表时发生错误: {e}")
-            await websocket.send_json(
-                {"status": "error", "message": f"获取表情列表失败: {str(e)}"}
-            )
+            await websocket.send_json({"status": "error", "message": f"获取表情列表失败: {str(e)}"})
             return
 
     # 原有逻辑：添加表情动作到队列
@@ -320,9 +302,7 @@ async def execute_actions(websocket: WebSocket, message: ExecuteAction) -> bool:
             if current_task and not current_task.done():
                 current_task.cancel()  # 触发CancelledError，控制器会处理完关键动作
                 # 给予足够时间完成关键动作（眨眼完成到睁眼状态）
-                if hasattr(controller, "cfg") and hasattr(
-                    controller.cfg, "open_duration"
-                ):
+                if hasattr(controller, "cfg") and hasattr(controller.cfg, "open_duration"):
                     await asyncio.sleep(controller.cfg.open_duration + 0.1)
                 else:
                     await asyncio.sleep(0.3)  # 默认等待时间
@@ -368,9 +348,7 @@ async def execute_actions(websocket: WebSocket, message: ExecuteAction) -> bool:
                     "actionStartTime": action.get("startTime", 0.0),
                 },
             }
-            asyncio.create_task(
-                websocket_manager.broadcast_json_to_path("subtitles", subtitle_data)
-            )
+            asyncio.create_task(websocket_manager.broadcast_json_to_path("subtitles", subtitle_data))
 
             # 处理语音合成
             if audio_player and config.speech_synthesis.enabled:
@@ -420,9 +398,7 @@ current_script_dir = os.path.dirname(os.path.abspath(__file__))
 frontend_dir_path = os.path.join(current_script_dir, "..", "frontend")
 
 if os.path.exists(frontend_dir_path) and os.path.isdir(frontend_dir_path):
-    app.mount(
-        "/frontend", StaticFiles(directory=frontend_dir_path), name="frontend_static"
-    )
+    app.mount("/frontend", StaticFiles(directory=frontend_dir_path), name="frontend_static")
     logger.info(f"前端静态文件已从以下路径挂载: {frontend_dir_path}, 可在/frontend访问")
 else:
     logger.warning(f"前端目录{frontend_dir_path}未找到。静态文件将无法提供。")

@@ -10,7 +10,6 @@ CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
 
 class ConfigBase(BaseModel):
-
     @classmethod
     def load_config(cls, file_path: Path):
         """加载配置文件"""
@@ -57,20 +56,12 @@ class ConfigBase(BaseModel):
 class ApiConfig(ConfigBase):
     """API配置"""
 
-    ENABLED: bool = Field(default=True, description="是否启用API")
     HOST: str = Field(default="0.0.0.0", description="API主机地址")
     PORT: int = Field(default=8080, description="API端口号")
     TIMEOUT: float = Field(
         default=5.0,
         description="超时时间，超过指定时间无API调用则恢复空闲动画",
     )
-
-
-class ChattsConfig(ConfigBase):
-    """文本转语音配置"""
-
-    ENABLED: bool = Field(default=True, description="是否启用文本转语音")
-    URL: str = Field(default="http://localhost:9872/", description="文本转语音API地址")
 
 
 class PluginConfig(ConfigBase):
@@ -185,6 +176,8 @@ class BilibiliConfigs(ConfigBase):
     """Bilibili直播配置"""
 
     LIVE_ROOM_ID: str = Field(default="0", description="Bilibili直播房间ID")
+    TRIGGER_COUNT: int = Field(default=10, description="触发LLM的弹幕/消息条数")
+    TRIGGER_TIME: float = Field(default=10.0, description="触发LLM的最大等待时间 (秒)")
     SESSDATA: str = Field(default="", description="Bilibili直播 sessdata")
     BILI_JCT: str = Field(default="", description="Bilibili直播 bili_jct")
     BUVID3: str = Field(default="", description="Bilibili直播 buvid3")

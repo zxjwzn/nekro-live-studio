@@ -1,0 +1,129 @@
+import asyncio
+import contextlib
+import random
+from typing import Dict, Optional, Set
+
+from services.vts_plugin import plugin
+from utils.easing import Easing
+from utils.logger import logger
+
+
+class Tweener:
+    """
+    通用的缓动工具类，并内置参数保活功能，以维持对VTS参数的控制。
+    """
+
+    def __init__(self, keep_alive_interval: float = 0.8):
+        self._plugin = plugin
+        self.controlled_params: Dict[str, float] = {}
+        self._active_tweens: Set[str] = set()
+        self._lock = asyncio.Lock()
+        self._keep_alive_task: Optional[asyncio.Task] = None
+        self._keep_alive_interval = keep_alive_interval
+
+    def start(self, plugin):
+        """启动参数保活循环。"""
+        if self._keep_alive_task and not self._keep_alive_task.done():
+            logger.warning("Tweener 保活任务已在运行中.")
+            return
+        self._plugin = plugin
+        self._keep_alive_task = asyncio.create_task(self._keep_alive_loop())
+        logger.info("Tweener 参数保活任务已启动.")
+
+    async def stop(self):
+        """停止参数保活循环。"""
+        if self._keep_alive_task:
+            self._keep_alive_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self._keep_alive_task
+        logger.info("Tweener 参数保活任务已停止.")
+
+    async def _keep_alive_loop(self):
+        """定期发送参数值以保持控制权。"""
+        while True:
+            try:
+                await asyncio.sleep(self._keep_alive_interval)
+                async with self._lock:
+                    if not self.controlled_params:
+                        continue
+
+                    tasks = []
+                    for param, value in self.controlled_params.items():
+                        if param not in self._active_tweens:
+                            tasks.append(self._plugin.set_parameter_value(param, value, mode="set"))
+                    if tasks:
+                        await asyncio.gather(*tasks)
+
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"Tweener 保活循环出错: {e}", exc_info=True)
+
+    async def tween(
+        self,
+        param: str,
+        start: float,
+        end: float,
+        duration: float,
+        easing_func,
+        mode: str = "set",
+        fps: int = 60,
+    ):
+        """优化后的缓动函数：保证在 duration 时间内完成，并由保活机制接管。"""
+        if not self._plugin:
+            logger.error("Tweener 未启动，请先调用 start() 方法.")
+            return
+
+        # 如果 duration 小于等于 0 或 start 等于 end，则直接设置参数值并返回
+        if duration <= 0 or start == end:
+            async with self._lock:
+                self.controlled_params[param] = end
+            await self._plugin.set_parameter_value(param, end, mode=mode)
+            return
+    
+        loop = asyncio.get_event_loop()
+        start_time = loop.time()
+        steps = max(1, int(duration * fps))
+        interval = duration / steps
+
+        async with self._lock:
+            self._active_tweens.add(param)
+
+        try:
+            for step in range(steps):
+                t = (step + 1) / steps
+                value = start + (end - start) * easing_func(t)
+                async with self._lock:
+                    self.controlled_params[param] = value
+                await self._plugin.set_parameter_value(param, value, mode=mode)
+                
+                now = loop.time()
+                next_time = start_time + (step + 1) * interval
+                sleep_time = next_time - now
+                if sleep_time > 0:
+                    await asyncio.sleep(sleep_time)
+        finally:
+            async with self._lock:
+                self.controlled_params[param] = end
+                self._active_tweens.remove(param)
+            await self._plugin.set_parameter_value(param, end, mode=mode)
+            
+    def release_all(self):
+        """释放所有参数的控制权。"""
+        self.controlled_params.clear()
+        logger.info("已释放所有 Tweener 控制的参数.")
+
+    @staticmethod
+    def random_easing():
+        """随机从常用缓动函数中选择一个，按权重分布。"""
+        funcs = [
+            Easing.in_out_sine,
+            Easing.in_out_quad,
+            Easing.in_out_back,
+        ]
+        weights = [0.75, 0.15, 0.1]
+        return random.choices(funcs, weights=weights)[0]
+
+
+# 创建一个全局单例
+tweener = Tweener()

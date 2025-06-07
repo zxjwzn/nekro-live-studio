@@ -1,12 +1,14 @@
 import asyncio
 import random
+from typing import List
+
 from configs.config import config
+from services.plugin import plugin
 from services.tweener import Tweener
 from utils.easing import Easing
 from utils.logger import logger
-from services.plugin import plugin
+
 from .base_controller import BaseController
-from typing import List
 
 
 class BlinkController(BaseController):
@@ -25,9 +27,7 @@ class BlinkController(BaseController):
         cancelled = False
         try:
             # 闭眼
-            logger.info(
-                f"开始闭眼 (缓动 {self._current_eye_left:.2f} -> {self.cfg.min_value:.2f})"
-            )
+            logger.info(f"开始闭眼 (缓动 {self._current_eye_left:.2f} -> {self.cfg.min_value:.2f})")
             await asyncio.gather(
                 Tweener.tween(
                     self.plugin,
@@ -52,9 +52,7 @@ class BlinkController(BaseController):
             logger.info(f"保持闭眼 {self.cfg.closed_hold:.2f} 秒")
             await asyncio.sleep(self.cfg.closed_hold)
             # 睁眼
-            logger.info(
-                f"开始睁眼 (缓动 {self._current_eye_left:.2f} -> {self.cfg.max_value:.2f})"
-            )
+            logger.info(f"开始睁眼 (缓动 {self._current_eye_left:.2f} -> {self.cfg.max_value:.2f})")
             await asyncio.gather(
                 Tweener.tween(
                     self.plugin,
@@ -80,12 +78,8 @@ class BlinkController(BaseController):
             cancelled = True
         # 确保最终睁眼
         await asyncio.gather(
-            self.plugin.set_parameter_value(
-                self.cfg.left_parameter, self._current_eye_left, mode="set"
-            ),
-            self.plugin.set_parameter_value(
-                self.cfg.right_parameter, self._current_eye_right, mode="set"
-            ),
+            self.plugin.set_parameter_value(self.cfg.left_parameter, self._current_eye_left, mode="set"),
+            self.plugin.set_parameter_value(self.cfg.right_parameter, self._current_eye_right, mode="set"),
         )
         logger.info("眨眼动画完成，确保眼睛保持睁开")
         # 如果在 tween 阶段收到取消，或外部 stop 事件，退出本周期

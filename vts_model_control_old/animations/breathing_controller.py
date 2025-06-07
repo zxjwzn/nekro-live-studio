@@ -1,10 +1,12 @@
 import asyncio
+import random
+from typing import List
+
 from configs.config import config
 from services.tweener import Tweener
 from utils.easing import Easing
+
 from .base_controller import BaseController
-from typing import List
-import random
 
 
 class BreathingController(BaseController):
@@ -34,16 +36,12 @@ class BreathingController(BaseController):
         )
 
         # 吸气阶段（随机时长&幅度）
-        await Tweener.tween(
-            self.plugin, self.cfg.parameter, v_min, v_max, inhale_dur, Easing.out_sine
-        )
+        await Tweener.tween(self.plugin, self.cfg.parameter, v_min, v_max, inhale_dur, Easing.out_sine)
         # 确保最终状态
         await self.plugin.set_parameter_value(self.cfg.parameter, v_max, mode="set")
 
         # 呼气阶段（随机时长&幅度）
-        await Tweener.tween(
-            self.plugin, self.cfg.parameter, v_max, v_min, exhale_dur, Easing.out_sine
-        )
+        await Tweener.tween(self.plugin, self.cfg.parameter, v_max, v_min, exhale_dur, Easing.out_sine)
         # 确保最终状态
         await self.plugin.set_parameter_value(self.cfg.parameter, v_min, mode="set")
 

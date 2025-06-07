@@ -7,25 +7,20 @@ class VTSException(Exception):
     """VTubeStudio 客户端基础异常类"""
 
 
-
 class VTSConnectionError(VTSException):
     """连接错误"""
-
 
 
 class VTSAuthenticationError(VTSException):
     """认证错误"""
 
 
-
 class VTSRequestError(VTSException):
     """请求错误"""
 
 
-
 class VTSResponseError(VTSException):
     """响应错误"""
-
 
 
 class VTSAPIError(VTSException):

@@ -1,14 +1,14 @@
-//{
-//    "version": "0.2.0",
-//    "configurations": [
-//      {
-//        "name": "Python: Debug main.py",
-//        "type": "debugpy",
-//        "request": "launch",
-//        // 指向你的 main.py 路径
-//        "program": "${workspaceFolder}/vts_model_control/main.py",
-//        "console": "integratedTerminal",
-//        "justMyCode": true
-//      }
-//    ]
-//  }
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Debug main.py",
+            "type": "debugpy",
+            "request": "launch",
+            // 指向你的 main.py 路径
+            "program": "${workspaceFolder}/vts_model_control/main.py",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        }
+    ]
+}

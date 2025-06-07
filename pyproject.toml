@@ -24,7 +24,8 @@ dependencies = [
     "qrcode[pil] (>=8.2,<9.0)",
     "qrcode-terminal (>=0.8,<0.9)",
     "apscheduler (>=3.11.0,<4.0.0)",
-    "loguru (>=0.7.3,<0.8.0)"
+    "loguru (>=0.7.3,<0.8.0)",
+    "pydub (>=0.25.1,<0.26.0)"
 ]
 
 

@@ -1,11 +1,13 @@
 import asyncio
 import contextlib
 from abc import ABC, abstractmethod
-from typing import List
+from typing import Dict, List, Optional
 
-from services.plugin import plugin
+from clients.vts_client.exceptions import (
+    VTSConnectionError,
+)
+from services.vts_plugin import plugin
 from utils.logger import logger
-from vts_client.exceptions import ConnectionError as VTSConnectionError
 
 
 class BaseController(ABC):
@@ -14,16 +16,25 @@ class BaseController(ABC):
     def __init__(self):
         self.plugin = plugin
         self._stop_event = asyncio.Event()
-        self._task = None
+        self._task: Optional[asyncio.Task] = None
         self.skip_pause = False
+
+    @property
+    def is_running(self) -> bool:
+        """检查动画循环是否正在运行"""
+        return self._task is not None and not self._task.done()
 
     async def start(self):
         """启动动画循环"""
+        if self.is_running:
+            return
         self._stop_event.clear()
         self._task = asyncio.create_task(self._run())
 
     async def stop(self):
         """停止动画循环"""
+        if not self.is_running:
+            return
         self._stop_event.set()
         if self._task:
             with contextlib.suppress(asyncio.CancelledError):
@@ -31,6 +42,8 @@ class BaseController(ABC):
 
     async def stop_without_wait(self):
         """停止动画循环，不等待"""
+        if not self.is_running:
+            return
         self._stop_event.set()
         if self._task:
             self._task.cancel()
@@ -53,7 +66,3 @@ class BaseController(ABC):
     @abstractmethod
     async def run_cycle(self):
         """子类实现一次动画循环逻辑"""
-
-    @abstractmethod
-    def get_controlled_parameters(self) -> List[str]:
-        """返回该控制器控制的参数列表"""
