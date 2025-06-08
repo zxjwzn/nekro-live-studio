@@ -59,7 +59,7 @@ class VTSPlugin:
             endpoint=endpoint,
         )
 
-    async def connect_and_authenticate(self) -> bool:
+    async def connect_and_authenticate(self, authentication_token: Optional[str] = None) -> bool:
         """
         连接到 VTube Studio 并执行认证流程。
 
@@ -74,7 +74,7 @@ class VTSPlugin:
         """
         try:
             await self.client.connect()
-            return await self.client.authenticate()
+            return await self.client.authenticate(authentication_token)
         except Exception:
             logger.exception("连接并认证失败")
             # 确保断开连接

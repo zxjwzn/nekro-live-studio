@@ -9,7 +9,7 @@ from animations.body_swing_controller import BodySwingController
 from animations.breathing_controller import BreathingController
 from animations.mouth_expression_controller import MouthExpressionController
 from clients.bilibili_live.bilibili_live import BilibiliLiveClient
-from configs.config import config
+from configs.config import config, reload_config, save_config
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
 from schemas.actions import Animation, Emotion, Execute, Say, SoundPlay
@@ -29,10 +29,12 @@ async def lifespan(app: FastAPI):
     logger.info("应用启动中...")
     # 连接 VTS
     logger.info(f"正在连接到 VTube Studio, 地址: {config.PLUGIN.VTS_ENDPOINT} 请在VTube Studio中点击认证")
-    if not await plugin.connect_and_authenticate():
+    if not await plugin.connect_and_authenticate(config.PLUGIN.AUTHENTICATION_TOKEN):
         logger.error("连接 VTS 失败, 请检查 VTube Studio 是否已开启并加载API插件")
         sys.exit(1)
-
+    if plugin.client.authentication_token:
+        config.PLUGIN.AUTHENTICATION_TOKEN = plugin.client.authentication_token
+        save_config()
     # 启动 Tweener
     tweener.start(plugin)
 

@@ -4,13 +4,14 @@ venv/
 __pycache__/
 *.py[cod]
 *$py.class
-static/
+data/configs/*
 
 # vscode
 .vscode/*
 !.vscode/launch.json
 
+
+
 # PEP 582; used by e.g. github.com/David-OConnor/pyflow
 __pypackages__/
 
-data/configs/vts_model_control.yaml

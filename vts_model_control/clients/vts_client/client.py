@@ -92,7 +92,7 @@ class VTSClient:
             self.is_authenticated = False
             logger.info("已断开与VTubeStudio的连接")
 
-    async def authenticate(self) -> bool:
+    async def authenticate(self, authentication_token: Optional[str] = None) -> bool:
         """
         执行认证流程
         1. 检查当前API状态
@@ -121,28 +121,32 @@ class VTSClient:
                 logger.info("已经认证，无需再次认证")
                 return True
 
-            # 步骤1: 请求认证令牌
-            logger.info("正在请求认证令牌...")
-            # 使用模型类替代原始字典
-            token_request = AuthenticationTokenRequest(
-                plugin_name=self.plugin_name,
-                plugin_developer=self.plugin_developer,
-                plugin_icon=self.plugin_icon,
-            )
+            if authentication_token:
+                self.authentication_token = authentication_token
+                self.is_authenticated = True
+            else:
+                # 步骤1: 请求认证令牌
+                logger.info("正在请求认证令牌...")
+                # 使用模型类替代原始字典
+                token_request = AuthenticationTokenRequest(
+                    plugin_name=self.plugin_name,
+                    plugin_developer=self.plugin_developer,
+                    plugin_icon=self.plugin_icon,
+                )
 
-            token_response = await self.send_request(token_request)
+                token_response = await self.send_request(token_request)
 
-            if token_response.error:
-                error_msg = token_response.data.get("message", "未知错误")
-                logger.error(f"获取认证令牌失败: {error_msg}")
-                raise VTSAuthenticationError(f"获取认证令牌失败: {error_msg}")  # noqa: TRY301
+                if token_response.error:
+                    error_msg = token_response.data.get("message", "未知错误")
+                    logger.error(f"获取认证令牌失败: {error_msg}")
+                    raise VTSAuthenticationError(f"获取认证令牌失败: {error_msg}")  # noqa: TRY301
 
-            if "authenticationToken" not in token_response.data:
-                logger.error("认证令牌响应格式错误")
-                raise VTSAuthenticationError("认证令牌响应格式错误")  # noqa: TRY301
+                if "authenticationToken" not in token_response.data:
+                    logger.error("认证令牌响应格式错误")
+                    raise VTSAuthenticationError("认证令牌响应格式错误")  # noqa: TRY301
 
-            self.authentication_token = token_response.data["authenticationToken"]
-            logger.info(f"获取到认证令牌: {self.authentication_token}")
+                self.authentication_token = token_response.data["authenticationToken"]
+                logger.info(f"获取到认证令牌: {self.authentication_token}")
 
             # 步骤2: 使用令牌进行认证
             logger.info("正在使用令牌进行认证...")
