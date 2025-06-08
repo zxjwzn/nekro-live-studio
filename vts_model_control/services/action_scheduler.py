@@ -37,7 +37,7 @@ class ActionScheduler:
         logger.info(f"执行动作队列, 动作数量: {len(self.action_queue)}, 循环次数: {loop}.")
         if not self.action_queue:
             return
-        await animation_manager.stop_all()
+        await animation_manager.pause()
         actions_to_run = list(self.action_queue)
         self.action_queue.clear()
 

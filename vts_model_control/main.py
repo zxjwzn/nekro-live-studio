@@ -184,7 +184,7 @@ async def websocket_animate_control_endpoint(websocket: WebSocket):
                     action = Execute.model_validate(data)
                     logger.info(f"收到 Execute action: {action}")
                     # 将耗时任务放入后台执行，避免阻塞WebSocket循环
-                    asyncio.create_task(action_scheduler.execute_queue(loop=action.data.loop))
+                    await action_scheduler.execute_queue(loop=action.data.loop)
                     await websocket.send_json(
                         {
                             "status": "success",

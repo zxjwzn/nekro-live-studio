@@ -16,7 +16,6 @@ class BlinkController(BaseController):
         super().__init__()
         self.cfg = config.BLINK
         self.skip_pause = False
-
     async def run_cycle(self):
         """执行一次眨眼周期: 在 tween/closed_hold/open 阶段完成眨眼，等待阶段可被取消"""
         try:

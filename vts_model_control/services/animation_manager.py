@@ -34,7 +34,20 @@ class AnimationManager:
 
         await asyncio.gather(*tasks)
         logger.info("动画控制器启动完成.")
+    async def pause(self):
+        """暂停正在运行的动画控制器"""
+        logger.info("正在暂停所有动画控制器...")
+        tasks = []
+        for controller in self.controllers:
+            if controller.is_running and controller.skip_pause is not True:
+                tasks.append(controller.stop_without_wait())
 
+        if not tasks:
+            logger.info("没有正在运行的动画控制器.")
+            return
+
+        await asyncio.gather(*tasks)
+        logger.info("已向所有动画控制器发送停止信号.")
     async def stop_all(self):
         """立即停止所有正在运行的动画控制器，不等待当前任务完成。"""
         logger.info("正在立即停止所有动画控制器...")
