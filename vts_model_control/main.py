@@ -4,13 +4,13 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import uvicorn
-from animations.blink_controller import BlinkController
-from animations.body_swing_controller import BodySwingController
-from animations.breathing_controller import BreathingController
-from animations.mouth_expression_controller import MouthExpressionController
 from clients.bilibili_live.bilibili_live import BilibiliLiveClient
 from configs.config import config, reload_config, save_config
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from idle_animations.blink_controller import BlinkController
+from idle_animations.body_swing_controller import BodySwingController
+from idle_animations.breathing_controller import BreathingController
+from idle_animations.mouth_expression_controller import MouthExpressionController
 from pydantic import ValidationError
 from schemas.actions import Animation, Emotion, Execute, Say, SoundPlay
 from services.action_scheduler import action_scheduler
@@ -40,14 +40,11 @@ async def lifespan(app: FastAPI):
 
     # 注册并启动空闲动画
     logger.info("正在注册动画控制器...")
-    if config.BLINK.ENABLED:
-        animation_manager.register_idle_controller(BlinkController())
-    if config.BREATHING.ENABLED:
-        animation_manager.register_idle_controller(BreathingController())
-    if config.BODY_SWING.ENABLED:
-        animation_manager.register_idle_controller(BodySwingController())
-    if config.MOUTH_EXPRESSION.ENABLED:
-        animation_manager.register_idle_controller(MouthExpressionController())
+
+    animation_manager.register_idle_controller(BlinkController())
+    animation_manager.register_idle_controller(BreathingController())
+    animation_manager.register_idle_controller(BodySwingController())
+    animation_manager.register_idle_controller(MouthExpressionController())
 
     asyncio.create_task(animation_manager.start_all())
 

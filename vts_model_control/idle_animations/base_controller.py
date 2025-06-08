@@ -1,16 +1,23 @@
 import asyncio
 import contextlib
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional
+from pathlib import Path
+from typing import Generic, Optional, Type, TypeVar
 
 from clients.vts_client.exceptions import (
     VTSConnectionError,
 )
 from services.vts_plugin import plugin
 from utils.logger import logger
+from configs.base import ConfigBase
+
+TConfig = TypeVar("TConfig", bound=ConfigBase)
+
+CONFIG_DIR = Path("data") / "configs"
+CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
 
-class BaseController(ABC):
+class BaseController(Generic[TConfig], ABC):
     """动画控制器基类，负责生命周期管理（start/stop）"""
 
     def __init__(self):
@@ -18,6 +25,29 @@ class BaseController(ABC):
         self._stop_event = asyncio.Event()
         self._task: Optional[asyncio.Task] = None
         self.skip_pause = False
+        self.config: TConfig = self.get_config_class().load_config(
+            self.get_config_path()
+        )
+        self.config.dump_config(self.get_config_path())
+
+    @classmethod
+    @abstractmethod
+    def get_config_class(cls) -> Type[TConfig]:
+        """获取配置类"""
+
+    @classmethod
+    @abstractmethod
+    def get_config_filename(cls) -> str:
+        """获取配置文件名"""
+
+    @classmethod
+    def get_config_path(cls) -> Path:
+        """获取配置文件路径"""
+        return CONFIG_DIR / cls.get_config_filename()
+
+    def save_config(self) -> None:
+        """保存配置"""
+        self.config.dump_config(self.get_config_path())
 
     @property
     def is_running(self) -> bool:

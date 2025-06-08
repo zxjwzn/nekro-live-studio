@@ -3,7 +3,7 @@ import inspect
 import re
 from typing import Dict, List
 
-from animations.base_controller import BaseController
+from idle_animations.base_controller import BaseController
 from configs.config import config
 from services.vts_plugin import plugin
 from utils.logger import logger
@@ -17,6 +17,8 @@ class AnimationManager:
 
     def register_idle_controller(self, controller: BaseController):
         """注册一个空闲动画控制器。"""
+        if controller in self.controllers or controller.config.ENABLED is False:
+            return
         self.controllers.append(controller)
         logger.info(f"已注册动画控制器: {controller.__class__.__name__}")
 
