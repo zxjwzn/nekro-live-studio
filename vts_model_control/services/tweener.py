@@ -16,7 +16,7 @@ class Tweener:
     def __init__(self, keep_alive_interval: float = 0.8):
         self._plugin = plugin
         self.controlled_params: Dict[str, float] = {}
-        self._active_tweens: Set[str] = set()
+        self._active_tweens: Dict[str, int] = {}
         self._lock = asyncio.Lock()
         self._keep_alive_task: Optional[asyncio.Task] = None
         self._keep_alive_interval = keep_alive_interval
@@ -62,17 +62,33 @@ class Tweener:
     async def tween(
         self,
         param: str,
-        start: float,
         end: float,
         duration: float,
         easing_func,
+        start: Optional[float] = None,
         mode: str = "set",
         fps: int = 60,
     ):
-        """优化后的缓动函数：保证在 duration 时间内完成，并由保活机制接管。"""
+        """
+        优化后的缓动函数：保证在 duration 时间内完成，并由保活机制接管。
+        
+        Args:
+            param: 参数名称
+            end: 目标值
+            duration: 缓动持续时间
+            easing_func: 缓动函数
+            start: 起始值，如果为None则使用当前控制的参数值，如果没有当前值则默认为0
+            mode: 设置模式
+            fps: 帧率
+        """
         if not self._plugin:
             logger.error("Tweener 未启动，请先调用 start() 方法.")
             return
+
+        # 确定起始值
+        if start is None:
+            async with self._lock:
+                start = self.controlled_params.get(param, 0.0)
 
         # 如果 duration 小于等于 0 或 start 等于 end，则直接设置参数值并返回
         if duration <= 0 or start == end:
@@ -87,7 +103,7 @@ class Tweener:
         interval = duration / steps
 
         async with self._lock:
-            self._active_tweens.add(param)
+            self._active_tweens[param] = self._active_tweens.get(param, 0) + 1
 
         try:
             for step in range(steps):
@@ -104,9 +120,10 @@ class Tweener:
                     await asyncio.sleep(sleep_time)
         finally:
             async with self._lock:
-                self.controlled_params[param] = end
-                self._active_tweens.remove(param)
-            await self._plugin.set_parameter_value(param, end, mode=mode)
+                if param in self._active_tweens:
+                    self._active_tweens[param] -= 1
+                    if self._active_tweens[param] <= 0:
+                        del self._active_tweens[param]
             
     def release_all(self):
         """释放所有参数的控制权。"""

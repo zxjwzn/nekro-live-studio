@@ -1,6 +1,7 @@
 import asyncio
 import sys
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import uvicorn
 from animations.blink_controller import BlinkController
@@ -10,10 +11,15 @@ from animations.mouth_expression_controller import MouthExpressionController
 from clients.bilibili_live.bilibili_live import BilibiliLiveClient
 from configs.config import config
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from pydantic import ValidationError
+from schemas.actions import Animation, Emotion, Execute, Say, SoundPlay
+from services.action_scheduler import action_scheduler
 from services.animation_manager import animation_manager
+from services.subtitle_broadcaster import subtitle_broadcaster
 from services.tweener import tweener
 from services.vts_plugin import plugin
 from services.websocket_manager import manager
+from starlette.staticfiles import StaticFiles
 from utils.logger import logger
 
 
@@ -67,6 +73,9 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+# 挂载静态文件目录
+app.mount("/static", StaticFiles(directory="data/resources"), name="static")
+
 
 @app.get("/")
 async def read_root():
@@ -93,6 +102,138 @@ async def websocket_danmaku_endpoint(websocket: WebSocket):
         logger.info(f"客户端 {client_host}:{client_port} 已从 {path} 断开")
 
 
+@app.websocket("/ws/subtitles")
+async def websocket_subtitles_endpoint(websocket: WebSocket):
+    """处理字幕广播的WebSocket端点"""
+    await subtitle_broadcaster.connect(websocket)
+    client_host = websocket.client.host if websocket.client else "unknown"
+    client_port = websocket.client.port if websocket.client else "unknown"
+    logger.info(f"客户端 {client_host}:{client_port} 已连接到 /ws/subtitles")
+    try:
+        while True:
+            # 保持连接开放以接收广播
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        subtitle_broadcaster.disconnect(websocket)
+        logger.info(f"客户端 {client_host}:{client_port} 已从 /ws/subtitles 断开")
+
+
+@app.websocket("/ws/animate_control")
+async def websocket_animate_control_endpoint(websocket: WebSocket):
+    """
+    处理动画控制的WebSocket端点.
+    """
+    path = "/ws/animate_control"
+    await manager.connect(websocket, path)
+    client_host = websocket.client.host if websocket.client else "unknown"
+    client_port = websocket.client.port if websocket.client else "unknown"
+    logger.info(f"客户端 {client_host}:{client_port} 已连接到 {path}")
+    try:
+        while True:
+            data = await websocket.receive_json()
+            action_type = data.get("type")
+            try:
+                if action_type == "say":
+                    action = Say.model_validate(data)
+                    logger.info(f"收到 Say action，已添加到队列: {action}")
+                    action_scheduler.add_action(action)
+                    await websocket.send_json(
+                        {
+                            "status": "success",
+                            "message": "说话动作已添加",
+                        },
+                    )
+                elif action_type == "animation":
+                    action = Animation.model_validate(data)
+                    logger.info(f"收到 Animation action，已添加到队列: {action}")
+                    action_scheduler.add_action(action)
+                    await websocket.send_json(
+                        {
+                            "status": "success",
+                            "message": "动画动作已添加",
+                        },
+                    )
+                elif action_type == "emotion":
+                    action = Emotion.model_validate(data)
+                    logger.info("收到 Emotion action")
+                    if not action.data.name:
+                        try:
+                            # 返回所有表情列表
+                            expressions = await plugin.get_expressions()
+                            await websocket.send_json(
+                                {
+                                    "status": "success",
+                                    "message": "表情列表已获取",
+                                    "data": {"type": "emotion", "expressions": expressions},
+                                },
+                            )
+                        except Exception as e:
+                            logger.error(f"获取表情列表时发生错误: {e}")
+                            await websocket.send_json({"status": "error", "message": f"获取表情列表失败: {e!s}"})
+                    else:
+                        action_scheduler.add_action(action)
+                        await websocket.send_json(
+                            {
+                                "status": "success",
+                                "message": "表情动作已添加",
+                            },
+                        )
+                elif action_type == "execute":
+                    action = Execute.model_validate(data)
+                    logger.info(f"收到 Execute action: {action}")
+                    # 将耗时任务放入后台执行，避免阻塞WebSocket循环
+                    asyncio.create_task(action_scheduler.execute_queue(loop=action.data.loop))
+                    await websocket.send_json(
+                        {
+                            "status": "success",
+                            "message": "动作队列已开始执行",
+                        },
+                    )
+                elif action_type == "sound_play":
+                    action = SoundPlay.model_validate(data)
+                    logger.info("收到 SoundPlay action")
+                    if not action.data.path:
+                        try:
+                            logger.info("开始扫描音效文件...")
+                            audio_dir = Path("data/resources/audios")
+                            logger.info(f"扫描目录: {audio_dir.resolve()}")
+                            all_wav_files = [p.name for p in audio_dir.glob("*.wav")]
+                            logger.info(f"找到 {len(all_wav_files)} 个 .wav 文件")
+                            
+                            excluded_file = config.SPEECH_SYNTHESIS.AUDIO_FILE_PATH
+                            if excluded_file in all_wav_files:
+                                all_wav_files.remove(excluded_file)
+                            logger.info("准备发送音效列表...")
+
+                            await websocket.send_json(
+                                {
+                                    "status": "success",
+                                    "message": "音效列表已获取",
+                                    "data": {"type": "sound_play", "sounds": all_wav_files},
+                                },
+                            )
+                            logger.info("音效列表已成功发送。")
+                        except Exception as e:
+                            logger.error(f"获取音效列表时发生错误: {e}", exc_info=True)
+                            await websocket.send_json({"status": "error", "message": f"获取音效列表失败: {e!s}"})
+                    else:
+                        action_scheduler.add_action(action)
+                        await websocket.send_json(
+                            {
+                                "status": "success",
+                                "message": "音效动作已添加",
+                            },
+                        )
+                else:
+                    logger.warning(f"未知的 action 类型: {action_type}")
+            except ValidationError as e:
+                logger.error(f"Action 数据校验失败: {e}, raw_data: {data}")
+
+    except WebSocketDisconnect:
+        manager.disconnect(websocket, path)
+        logger.info(f"客户端 {client_host}:{client_port} 已从 {path} 断开")
+
+
 if __name__ == "__main__":
     logger.info(f"API服务器将在 http://{config.API.HOST}:{config.API.PORT} 上启动")
     uvicorn.run(
@@ -100,5 +241,4 @@ if __name__ == "__main__":
         host=config.API.HOST,
         port=config.API.PORT,
         log_level=config.LOG_LEVEL.lower(),
-        reload=True,
     )

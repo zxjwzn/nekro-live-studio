@@ -36,23 +36,16 @@ class AnimationManager:
         logger.info("动画控制器启动完成.")
 
     async def stop_all(self):
-        """停止所有正在运行的动画控制器。"""
-        logger.info("正在停止所有动画控制器...")
-        tasks = [controller.stop() for controller in self.controllers if controller.is_running]
+        """立即停止所有正在运行的动画控制器，不等待当前任务完成。"""
+        logger.info("正在立即停止所有动画控制器...")
+        tasks = [controller.stop_without_wait() for controller in self.controllers if controller.is_running]
 
         if not tasks:
             logger.info("没有正在运行的动画控制器.")
             return
 
         await asyncio.gather(*tasks)
-        logger.info("所有动画控制器已停止.")
-
-    def get_all_controlled_parameters(self) -> List[str]:
-        """获取所有已注册控制器控制的参数列表。"""
-        params = set()
-        for controller in self.controllers:
-            params.update(controller.get_controlled_parameters())
-        return list(params)
+        logger.info("已向所有动画控制器发送停止信号.")
 
 
 # 创建一个全局单例

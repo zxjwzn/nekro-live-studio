@@ -69,7 +69,7 @@ class PluginConfig(ConfigBase):
 
     PLUGIN_NAME: str = "vts模型控制插件"
     PLUGIN_DEVELOPER: str = "Zaxpris"
-    VTS_ENDPOINT: str = "ws://localhost:8002"
+    VTS_ENDPOINT: str = "ws://localhost:8001"
     AUTHENTICATION_TOKEN: str = ""
     RESTORE_DURATION: float = Field(default=3.0, description="恢复参数过渡时间（秒）")
     CLEANUP_TIMEOUT: float = Field(default=5.0, description="清理操作超时时间（秒）")
@@ -166,10 +166,15 @@ class SpeechSynthesisConfig(ConfigBase):
     ENABLED: bool = Field(default=True, description="是否启用RPG风格语音播放")
     TEXT_PER_SECOND_RATE: float = Field(default=5.0, description="每秒播放的字数 (播放速率)")
     AUDIO_FILE_PATH: str = Field(
-        default="D:\\\\QQbot\\\\live2d\\\\vts_face_control_plugin\\\\vts_model_control\\\\resources\\\\audios\\\\vocal_.mp3",
+        default="vocal_.wav",
         description="用于播放的音频文件路径",
     )
     VOLUME: float = Field(default=0.5, ge=0.0, le=1.0, description="播放音量 (范围 0.0 到 1.0)")
+    FONT_PATH: str = Field(default="data/resources/fonts/JinNianYeYaoJiaYouYa.ttf", description="字体路径")
+    FONT_COLOR: str = Field(default="#ffffff", description="字体颜色, 16进制颜色码")
+    FONT_EDGE_COLOR: str = Field(default="#000000", description="字体描边颜色, 16进制颜色码")
+    FONT_EDGE_WIDTH: int = Field(default=1, description="字体描边宽度")
+    FONT_SIZE: int = Field(default=50, description="字体大小")
 
 
 class BilibiliConfigs(ConfigBase):

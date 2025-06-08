@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>实时字幕</title>
+    <style>
+        /* 基础样式，确保背景透明 */
+        html, body {
+            background-color: transparent;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            height: 100%;
+            width: 100%;
+            font-family: sans-serif; /* 默认字体 */
+        }
+
+        /* 字幕容器 */
+        #subtitle-container {
+            position: fixed;
+            bottom: 5%; /* 距离底部5% */
+            left: 50%;
+            transform: translateX(-50%);
+            width: 75vw; /* 占据屏幕宽度的75% */
+            max-height: 50vh; /* 最大高度为下半屏幕 */
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+            
+            /* 美化文本 */
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+            
+            /* 禁止用户选择，在OBS中更好看 */
+            user-select: none;
+        }
+        
+        /* 每一段字幕的样式 */
+        #subtitle-text {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 10px 20px;
+            color: white; /* 默认字体颜色 */
+            font-size: 3vw; /* 默认字体大小，使用vw以适应屏幕 */
+            text-align: center;
+            line-height: 1.5;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="subtitle-container">
+        <p id="subtitle-text"></p>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const subtitleTextElement = document.getElementById('subtitle-text');
+            const subtitleContainer = document.getElementById('subtitle-container');
+            
+            let ws;
+            let currentDisplayTask = null;
+            let autoClearTimeout = null;
+            let heartbeatInterval = null;
+
+            function connect() {
+                // 动态确定WebSocket地址
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const host = window.location.host;
+                ws = new WebSocket(`${protocol}//${host}/ws/subtitles`);
+
+                ws.onopen = () => {
+                    console.log('字幕 WebSocket 已连接');
+                    // 启动心跳
+                    startHeartbeat();
+                };
+
+                ws.onmessage = (event) => {
+                    // 如果收到 pong, 说明连接正常, 可以在此重置超时等
+                    if (event.data === '{"type":"pong"}') {
+                        console.log("收到心跳响应 (pong)");
+                        return;
+                    }
+                    try {
+                        const message = JSON.parse(event.data);
+                        if (message.type === 'say') {
+                            handleSayMessage(message.data);
+                        }
+                    } catch (error) {
+                        console.error('解析消息失败:', error);
+                    }
+                };
+
+                ws.onclose = () => {
+                    console.log('字幕 WebSocket 已断开，尝试 3 秒后重连...');
+                    // 停止心跳
+                    stopHeartbeat();
+                    if (currentDisplayTask) {
+                        currentDisplayTask.abort();
+                    }
+                    setTimeout(connect, 3000);
+                };
+
+                ws.onerror = (error) => {
+                    console.error('WebSocket 错误:', error);
+                    ws.close();
+                };
+            }
+            
+            function startHeartbeat() {
+                // 先清除旧的计时器, 以防万一
+                stopHeartbeat(); 
+                heartbeatInterval = setInterval(() => {
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({ type: 'ping' }));
+                        console.log("发送心跳 (ping)");
+                    }
+                }, 30000); // 每30秒发送一次
+            }
+
+            function stopHeartbeat() {
+                if (heartbeatInterval) {
+                    clearInterval(heartbeatInterval);
+                    heartbeatInterval = null;
+                }
+            }
+
+            function handleSayMessage(data) {
+                // 如果有正在执行的任务，立即中止
+                if (currentDisplayTask) {
+                    currentDisplayTask.abort();
+                }
+                // 清除自动清空计时器
+                if(autoClearTimeout) {
+                    clearTimeout(autoClearTimeout);
+                    autoClearTimeout = null;
+                }
+
+                currentDisplayTask = new AbortController();
+                displayMessage(data, currentDisplayTask.signal).catch(err => {
+                    if (err.name !== 'AbortError') {
+                        console.error("显示任务出错:", err);
+                    }
+                });
+            }
+
+            async function displayMessage(data, signal) {
+                subtitleTextElement.textContent = '';
+                const fontName = await loadFont(data.font_path, data.font_size);
+                
+                subtitleTextElement.style.fontFamily = fontName;
+                subtitleTextElement.style.fontSize = `${data.font_size}px`;
+                subtitleTextElement.style.color = data.font_color;
+                
+                // 应用字体边框样式
+                applyTextStroke(data.font_edge_color, data.font_edge_width);
+                
+                // 重置字体大小以进行新的调整
+                subtitleContainer.style.fontSize = '1em';
+
+                for (let i = 0; i < data.text.length; i++) {
+                    const segment = data.text[i];
+                    const speed = data.speed[i] > 0 ? data.speed[i] : 10; // 字符/秒
+                    const interval = 1000 / speed;
+
+                    for (const char of segment) {
+                        if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+                        
+                        subtitleTextElement.textContent += char;
+                        checkAndAdjustLayout();
+                        await sleep(interval);
+                    }
+                    // 每段话说完加一个换行
+                    if (i < data.text.length - 1) {
+                         subtitleTextElement.textContent += '\n';
+                    }
+                }
+                
+                // 全部显示完毕后，设置3秒后自动清除
+                autoClearTimeout = setTimeout(() => {
+                    subtitleTextElement.textContent = '';
+                }, 3000);
+            }
+
+            function applyTextStroke(edgeColor, edgeWidth) {
+                // 如果没有边框宽度或边框宽度为0，则清除边框效果
+                if (!edgeWidth || edgeWidth <= 0) {
+                    subtitleTextElement.style.webkitTextStroke = '';
+                    subtitleTextElement.style.textStroke = '';
+                    return;
+                }
+                
+                // 确保边框颜色有默认值
+                const strokeColor = edgeColor || '#000000';
+                
+                // 应用文字边框
+                subtitleTextElement.style.webkitTextStroke = `${edgeWidth}px ${strokeColor}`;
+                subtitleTextElement.style.textStroke = `${edgeWidth}px ${strokeColor}`;
+            }
+
+            function checkAndAdjustLayout() {
+                const containerHeight = subtitleContainer.offsetHeight;
+                const windowHeight = window.innerHeight;
+                
+                // 如果容器高度超过屏幕下半部分的50%
+                if (containerHeight > windowHeight * 0.5) {
+                    let currentFontSize = parseFloat(window.getComputedStyle(subtitleTextElement).fontSize);
+                    // 当超出范围时，循环减小字体直到适应
+                    while (subtitleContainer.offsetHeight > windowHeight * 0.5 && currentFontSize > 10) {
+                        currentFontSize -= 1; // 每次减小1px
+                        subtitleTextElement.style.fontSize = `${currentFontSize}px`;
+                    }
+                }
+            }
+
+            // 动态加载字体
+            const loadedFonts = new Map();
+            async function loadFont(fontPath) {
+                if (!fontPath) return 'sans-serif'; // 返回默认字体
+                if (loadedFonts.has(fontPath)) {
+                    return loadedFonts.get(fontPath); // 返回缓存的字体名
+                }
+                
+                // 从路径中提取一个干净的字体名, e.g., "MyFont" from ".../MyFont.ttf"
+                const pathParts = fontPath.split('/');
+                const fileName = pathParts[pathParts.length - 1] || 'default-font';
+                const cleanFontName = fileName.split('.').slice(0, -1).join('.') || fileName;
+                
+                // 将 data/resources/fonts/msyh.ttf 转换为 ../fonts/msyh.ttf
+                const fontUrl = fontPath.replace(/^data\/resources/, '..');
+
+                const fontFace = new FontFace(cleanFontName, `url(${fontUrl})`);
+                
+                try {
+                    await fontFace.load();
+                    document.fonts.add(fontFace);
+                    loadedFonts.set(fontPath, cleanFontName); // 缓存字体名
+                    console.log(`字体已加载: ${fontPath} as '${cleanFontName}'`);
+                    return cleanFontName;
+                } catch (error) {
+                    console.error(`加载字体失败: ${fontPath}`, error);
+                    return 'sans-serif'; // 加载失败时回退
+                }
+            }
+            
+            function sleep(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+
+            connect();
+        });
+    </script>
+</body>
+</html>

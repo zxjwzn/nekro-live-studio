@@ -20,8 +20,9 @@ class AudioPlayer:
     def __init__(self, base_audio_path: str = "data/resources/audios"):
         if hasattr(self, "_initialized") and self._initialized:
             return
-
-        pygame.mixer.init()
+        
+        pygame.mixer.init(channels=30)
+        pygame.mixer.set_num_channels(30)
         self.base_audio_path = Path(base_audio_path)
         self.base_audio_path.mkdir(parents=True, exist_ok=True)
         self.playing_sounds: Dict[int, pygame.mixer.Channel] = {}

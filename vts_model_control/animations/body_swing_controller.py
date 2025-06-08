@@ -1,10 +1,7 @@
 import asyncio
 import random
-from typing import List
 
 from configs.config import config
-from services.vts_plugin import plugin
-from utils.easing import Easing
 from utils.logger import logger
 from services.tweener import tweener
 
@@ -18,10 +15,6 @@ class BodySwingController(BaseController):
         super().__init__()
         self.cfg = config.BODY_SWING
         self.eye_cfg = config.EYE_FOLLOW
-        self._current_x = tweener.controlled_params.get(self.cfg.X_PARAMETER, 0.0)
-        self._current_z = tweener.controlled_params.get(self.cfg.Z_PARAMETER, 0.0)
-        self._eye_x = 0.0
-        self._eye_y = 0.0
 
     async def run_cycle(self):
         """执行一次身体摇摆周期。"""
@@ -41,22 +34,43 @@ class BodySwingController(BaseController):
         try:
             logger.info(
                 f"身体摇摆: "
-                f"X: {self._current_x:.2f} -> {target_x:.2f}, "
-                f"Z: {self._current_z:.2f} -> {target_z:.2f}, "
+                f"X: {target_x:.2f}, "
+                f"Z: {target_z:.2f}, "
                 f"时长: {duration:.2f}s, 缓动: {easing_func.__name__}"
             )
-            logger.info(f"眼睛跟随: 当前=({self._eye_x:.2f}, {self._eye_y:.2f}), 目标=({eye_x:.2f}, {eye_y:.2f})")
+            logger.info(f"眼睛跟随: 目标=({eye_x:.2f}, {eye_y:.2f})")
             await asyncio.gather(
-                tweener.tween(self.cfg.X_PARAMETER, self._current_x, target_x, duration, easing_func),
-                tweener.tween(self.cfg.Z_PARAMETER, self._current_z, target_z, duration, easing_func),
-                tweener.tween(self.eye_cfg.LEFT_X_PARAMETER, self._eye_x, eye_x, duration, easing_func),
-                tweener.tween(self.eye_cfg.RIGHT_X_PARAMETER, self._eye_x, eye_x, duration, easing_func),
-                tweener.tween(self.eye_cfg.LEFT_Y_PARAMETER, self._eye_y, eye_y, duration, easing_func),
-                tweener.tween(self.eye_cfg.RIGHT_Y_PARAMETER, self._eye_y, eye_y, duration, easing_func),
+                tweener.tween(
+                    param=self.cfg.X_PARAMETER, end=target_x, duration=duration, easing_func=easing_func
+                ),
+                tweener.tween(
+                    param=self.cfg.Z_PARAMETER, end=target_z, duration=duration, easing_func=easing_func
+                ),
+                tweener.tween(
+                    param=self.eye_cfg.LEFT_X_PARAMETER,
+                    end=eye_x,
+                    duration=duration,
+                    easing_func=easing_func,
+                ),
+                tweener.tween(
+                    param=self.eye_cfg.RIGHT_X_PARAMETER,
+                    end=eye_x,
+                    duration=duration,
+                    easing_func=easing_func,
+                ),
+                tweener.tween(
+                    param=self.eye_cfg.LEFT_Y_PARAMETER,
+                    end=eye_y,
+                    duration=duration,
+                    easing_func=easing_func,
+                ),
+                tweener.tween(
+                    param=self.eye_cfg.RIGHT_Y_PARAMETER,
+                    end=eye_y,
+                    duration=duration,
+                    easing_func=easing_func,
+                ),
             )
-            self._current_x = target_x
-            self._current_z = target_z
 
-            self._eye_x, self._eye_y = eye_x, eye_y
         except asyncio.CancelledError:
             raise
