@@ -48,6 +48,19 @@ class AudioPlayer:
         self._next_id += 1
         return current_id
 
+    def get_duration(self, sound_data: SoundPlayData) -> float:
+        """获取音频的播放时长（秒），考虑播放速度。如果文件未找到或出错，则返回0。"""
+        file_path = self._resolve_path(sound_data.path)
+        if not file_path:
+            return 0.0
+
+        try:
+            audio = AudioSegment.from_file(file_path)
+            return audio.duration_seconds / sound_data.speed
+        except Exception as e:
+            logger.error(f"Error getting duration for audio {sound_data.path}: {e}")
+            return 0.0
+    
     def play(self, sound_data: SoundPlayData) -> Optional[int]:
         """播放音频，返回播放ID，失败时返回None"""
         file_path = self._resolve_path(sound_data.path)

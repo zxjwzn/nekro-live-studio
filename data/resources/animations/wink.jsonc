@@ -2,13 +2,13 @@
     "name": "wink_proportional",
     "type": "animation",
     "data": {
-        "description": "一个带比例的眨眼动画。睁眼时长是闭眼时长的一半。",
+        "description": "闭左眼的wink动画",
 
         // 1. 声明外部参数 (API接口)
         "params": [
             {
-                "name": "base_duration",
-                "description": "基础持续时间，用于计算闭眼时长",
+                "name": "close_duration",
+                "description": "闭眼持续时长",
                 "type": "float",
                 "default": 1.0
             }
@@ -16,28 +16,40 @@
 
         // 2. 定义内部变量，实现比例和约束
         "variables": {
-            // "close_duration" 是外部参数的 1.5 倍
-            "close_duration": { "expr": "base_duration * 1.5" },
-            // "open_duration" 是 "close_duration" 的一半，这就实现了比例关系
-            "open_duration": { "expr": "close_duration / 2" }
+
         },
 
         // 3. 在动作中使用计算好的变量
         "actions": [
             {
-                "parameter": "EyeLeftOpen",
-                "to": 0, // 闭眼
-                "duration": { "expr": "close_duration" }, // 使用变量
-                "easing": "easeInOutQuad",
+                "parameter": "EyeOpenRight",
+                "to": 1, // 睁眼
+                "duration": 0.3,
+                "easing": "in_out_sine",
                 "delay": 0.0
             },
             {
-                "parameter": "EyeLeftOpen",
-                "to": 1, // 睁眼
-                "duration": { "expr": "open_duration" }, // 使用另一个按比例计算的变量
-                "easing": "easeInOutQuad",
+                "parameter": "EyeOpenLeft",
+                "to": 0, // 闭眼
+                "duration": 0.15,
+                "easing": "in_out_sine",
+                "delay": 0.0
+            },
+            {
+                "parameter": "EyeOpenLeft",
+                "to": 0, // 持续闭眼
+                "duration": { "expr": "close_duration" }, // 使用另一个按比例计算的变量
+                "easing": "in_out_sine",
                 // 延迟时间等于闭眼的时间
-                "delay": { "expr": "close_duration" }
+                "delay": 0.15
+            },
+            {
+                "parameter": "EyeOpenLeft",
+                "to": 1, // 睁眼
+                "duration": 0.3, // 使用另一个按比例计算的变量
+                "easing": "in_out_sine",
+                // 延迟时间等于闭眼的时间
+                "delay": { "expr": "close_duration + 0.15" }
             }
         ]
     }

@@ -2,12 +2,11 @@ import asyncio
 import random
 from typing import Type
 
+from configs.base import ConfigBase
 from pydantic import Field
-
 from services.tweener import tweener
 from utils.easing import Easing
 from utils.logger import logger
-from configs.base import ConfigBase
 
 from .base_controller import BaseController
 
@@ -46,41 +45,38 @@ class BlinkController(BaseController[BlinkConfig]):
 
     async def run_cycle(self):
         """执行一次眨眼周期: 在 tween/closed_hold/open 阶段完成眨眼，等待阶段可被取消"""
-        try:
-            # 闭眼
-            await asyncio.gather(
-                tweener.tween(
-                    param=self.config.LEFT_PARAMETER,
-                    end=self.config.MIN_VALUE,
-                    duration=self.config.CLOSE_DURATION,
-                    easing_func=Easing.out_sine,
-                ),
-                tweener.tween(
-                    param=self.config.RIGHT_PARAMETER,
-                    end=self.config.MIN_VALUE,
-                    duration=self.config.CLOSE_DURATION,
-                    easing_func=Easing.out_sine,
-                ),
-            )
-            # 保持闭眼
-            await asyncio.sleep(self.config.CLOSED_HOLD)
-            # 睁眼
-            await asyncio.gather(
-                tweener.tween(
-                    param=self.config.LEFT_PARAMETER,
-                    end=self.config.MAX_VALUE,
-                    duration=self.config.OPEN_DURATION,
-                    easing_func=Easing.in_sine,
-                ),
-                tweener.tween(
-                    param=self.config.RIGHT_PARAMETER,
-                    end=self.config.MAX_VALUE,
-                    duration=self.config.OPEN_DURATION,
-                    easing_func=Easing.in_sine,
-                ),
-            )
-        except asyncio.CancelledError:
-            raise
+        # 闭眼
+        await asyncio.gather(
+            tweener.tween(
+                param=self.config.LEFT_PARAMETER,
+                end=self.config.MIN_VALUE,
+                duration=self.config.CLOSE_DURATION,
+                easing_func=Easing.out_sine,
+            ),
+            tweener.tween(
+                param=self.config.RIGHT_PARAMETER,
+                end=self.config.MIN_VALUE,
+                duration=self.config.CLOSE_DURATION,
+                easing_func=Easing.out_sine,
+            ),
+        )
+        # 保持闭眼
+        await asyncio.sleep(self.config.CLOSED_HOLD)
+        # 睁眼
+        await asyncio.gather(
+            tweener.tween(
+                param=self.config.LEFT_PARAMETER,
+                end=self.config.MAX_VALUE,
+                duration=self.config.OPEN_DURATION,
+                easing_func=Easing.in_sine,
+            ),
+            tweener.tween(
+                param=self.config.RIGHT_PARAMETER,
+                end=self.config.MAX_VALUE,
+                duration=self.config.OPEN_DURATION,
+                easing_func=Easing.in_sine,
+            ),
+        )
 
         # 如果外部 stop 事件已设置，退出本周期
         if self._stop_event.is_set():

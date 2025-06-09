@@ -3,7 +3,7 @@ from collections import deque
 from typing import Deque, Optional, cast
 
 from configs.config import config
-from schemas.actions import Action, Animation, Emotion, Say, SoundPlay, SoundPlayData
+from schemas.actions import Action, Animation, Expression, Say, SoundPlay, SoundPlayData
 from services.animation_manager import animation_manager
 from services.audio_player import audio_player
 from services.subtitle_broadcaster import subtitle_broadcaster
@@ -27,10 +27,31 @@ class ActionScheduler:
         self.action_queue: Deque[Action] = deque()
         self._initialized = True
 
-    def add_action(self, action: Action):
-        """添加动作到队列"""
+    def _get_action_completion_time(self, action: Action) -> float:
+        """计算单个动作的完成时间（包括延迟）"""
+        delay = getattr(action.data, "delay", 0.0)
+        duration = 0.0
+        action_type = action.type
+
+        if action_type == "animation":
+            anim_action = cast(Animation, action)
+            duration = anim_action.data.duration
+        elif action_type == "expression":
+            expression_action = cast(Expression, action)
+            # duration <= 0 表示永久，这里当做0时长处理
+            if expression_action.data.duration > 0:
+                duration = expression_action.data.duration
+        elif action_type == "sound_play":
+            sound_action = cast(SoundPlay, action)
+            duration = audio_player.get_duration(sound_action.data)
+
+        return delay + duration
+
+    def add_action(self, action: Action) -> float:
+        """添加动作到队列并返回其预估完成时间"""
         self.action_queue.append(action)
         logger.info(f"动作已添加到队列: {action.type}. 队列大小: {len(self.action_queue)}")
+        return self._get_action_completion_time(action)
 
     async def execute_queue(self, loop: int = 0):
         """执行动作队列，可选循环"""
@@ -50,7 +71,7 @@ class ActionScheduler:
 
             if tasks:
                 await asyncio.gather(*tasks)
-        
+
         logger.info(f"动作队列执行完成, 共执行 {total_runs} 次")
         await animation_manager.start_all()
 
@@ -66,14 +87,23 @@ class ActionScheduler:
         try:
             if action_type == "say":
                 say_action = cast(Say, action)
+
                 # 广播完整字幕信息
                 await subtitle_broadcaster.broadcast(say_action.model_dump_json())
-                for text, speed in zip(say_action.data.text, say_action.data.speed):
-                    wait_time = 1 / speed
-                    for _ in text:
-                        data = SoundPlayData(path=config.SPEECH_SYNTHESIS.AUDIO_FILE_PATH, volume=config.SPEECH_SYNTHESIS.VOLUME, speed=1.0, duration=0.0, delay=0.0) 
-                        audio_player.play(data)
-                        await asyncio.sleep(wait_time)
+
+                # 仿RPG游戏对话，逐字播放音频
+                #for text, speed in zip(say_action.data.text, say_action.data.speed):
+                #    wait_time = 1 / speed
+                #    for _ in text:
+                #        data = SoundPlayData(
+                #            path=config.SPEECH_SYNTHESIS.AUDIO_FILE_PATH,
+                #            volume=config.SPEECH_SYNTHESIS.VOLUME,
+                #            speed=1.0,
+                #            duration=0.0,
+                #            delay=0.0,
+                #        )
+                #        audio_player.play(data)
+                #        await asyncio.sleep(wait_time)
 
             elif action_type == "animation":
                 anim_action = cast(Animation, action)
@@ -90,20 +120,20 @@ class ActionScheduler:
                     easing_func=easing_func,
                 )
 
-            elif action_type == "emotion":
-                emotion_action = cast(Emotion, action)
-                if emotion_action.data.name:
-                    await plugin.activate_expression(expression_file=emotion_action.data.name, active=True)
-                    if emotion_action.data.duration > 0:
-                        await asyncio.sleep(emotion_action.data.duration)
-                        await plugin.activate_expression(expression_file=emotion_action.data.name, active=False)
+            elif action_type == "expression":
+                expression_action = cast(Expression, action)
+                if expression_action.data.name:
+                    await plugin.activate_expression(expression_file=expression_action.data.name, active=True)
+                    if expression_action.data.duration > 0:
+                        await asyncio.sleep(expression_action.data.duration)
+                        await plugin.activate_expression(expression_file=expression_action.data.name, active=False)
 
             elif action_type == "sound_play":
                 sound_action = cast(SoundPlay, action)
                 audio_player.play(sound_action.data)
+
         except Exception as e:
             logger.error(f"执行动作 {action_type} 时发生错误: {e}", exc_info=True)
-
 
     def clear_queue(self):
         """清空动作队列"""
