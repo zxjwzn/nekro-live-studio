@@ -7,9 +7,9 @@ from typing import Generic, Optional, Type, TypeVar
 from clients.vts_client.exceptions import (
     VTSConnectionError,
 )
-from services.vts_plugin import plugin
-from utils.logger import logger
+from clients.vts_client.plugin import plugin
 from configs.base import ConfigBase
+from utils.logger import logger
 
 TConfig = TypeVar("TConfig", bound=ConfigBase)
 

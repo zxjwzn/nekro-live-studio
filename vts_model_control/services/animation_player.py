@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional, Union
 import json5
 from pydantic import ValidationError
 from schemas.actions import Action, Animation, AnimationData
-from schemas.animation_template import (
+from schemas.preformed_animation import (
     ActionTemplate,
     AnimationInfo,
     AnimationTemplate,
@@ -57,6 +57,7 @@ class AnimationPlayer:
 
     def list_preformed_animations(self) -> List[AnimationInfo]:
         """返回所有动画的摘要信息列表"""
+        self.load_animations()
         return [
             AnimationInfo(name=t.name, description=t.data.description, params=t.data.params) for t in self._templates.values()
         ]
@@ -67,6 +68,7 @@ class AnimationPlayer:
         params: Optional[Dict[str, Any]] = None,
         delay: float = 0.0,
     ) -> float:
+        self.load_animations()
         template = self._templates.get(name)
         if not template:
             logger.error(f"未找到名为 '{name}' 的动画模板.")
@@ -89,12 +91,12 @@ class AnimationPlayer:
                 completion_time = action_scheduler.add_action(action)
                 if completion_time > max_completion_time:
                     max_completion_time = completion_time
-            
-            return max_completion_time
 
         except (ValueError, KeyError) as e:
             logger.error(f"执行动画 '{name}' 失败: {e}", exc_info=True)
             return 0.0
+        
+        return max_completion_time
 
     def _prepare_context(self, template: AnimationTemplate, user_params: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         context: Dict[str, Any] = {}

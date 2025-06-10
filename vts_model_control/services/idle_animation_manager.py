@@ -4,8 +4,6 @@ import re
 from typing import Dict, List
 
 from idle_animations.base_controller import BaseController
-from configs.config import config
-from services.vts_plugin import plugin
 from utils.logger import logger
 
 

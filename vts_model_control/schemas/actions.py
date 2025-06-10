@@ -15,13 +15,15 @@ class SoundPlayData(BaseModel):
 
 
 class SayData(BaseModel):
-    text: List[str] = Field(description="要说的文本列表")
-    speed: List[float] = Field(description="每段文本的播放速度列表, 代表1秒n字")
-    font_size: int = Field(description="字体大小", default=config.SPEECH_SYNTHESIS.FONT_SIZE)
-    font_color: str = Field(description="字体颜色, 16进制颜色码", default=config.SPEECH_SYNTHESIS.FONT_COLOR)
-    font_path: str = Field(description="字体路径", default=config.SPEECH_SYNTHESIS.FONT_PATH)
-    font_edge_color: str = Field(description="字体描边颜色, 16进制颜色码", default=config.SPEECH_SYNTHESIS.FONT_EDGE_COLOR)
-    font_edge_width: int = Field(description="字体描边宽度", default=config.SPEECH_SYNTHESIS.FONT_EDGE_WIDTH)
+    text: str = Field(description="要说的文本")
+    speed: float = Field(description="文本的播放速度, 代表1秒n字", default=config.SUBTITLE.TEXT_PER_SECOND_RATE)
+    font_size: int = Field(description="字体大小", default=config.SUBTITLE.FONT_SIZE)
+    tts_text: str = Field(description="文本转语音的文字内容")
+    font_color: str = Field(description="字体颜色, 16进制颜色码", default=config.SUBTITLE.FONT_COLOR)
+    font_path: str = Field(description="字体路径", default=config.SUBTITLE.FONT_PATH)
+    font_edge_color: str = Field(description="字体描边颜色, 16进制颜色码", default=config.SUBTITLE.FONT_EDGE_COLOR)
+    font_edge_width: int = Field(description="字体描边宽度", default=config.SUBTITLE.FONT_EDGE_WIDTH)
+    volume: float = Field(default=config.TTS.VOLUME, description="音量,范围为0~1", ge=0, le=1)
 
 
 class AnimationData(BaseModel):

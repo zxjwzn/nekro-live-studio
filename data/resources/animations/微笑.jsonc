@@ -1,0 +1,53 @@
+{
+    "name": "微笑",
+    "type": "animation",
+    "data": {
+        "description": "微笑,可用于表达开心,调皮等",
+
+        // 1. 声明外部参数 (API接口)
+        "params": [
+            {
+                "name": "duration",
+                "description": "微笑持续的时长(秒)",
+                "type": "float",
+                "default": 1.0
+            },
+            {
+                "name": "mouth_open_target",
+                "description": "微笑时嘴部的张开程度(0~1)，实现闭口笑或者开口笑",
+                "type": "float",
+                "default": 0,
+            }
+        ],
+
+        // 2. 定义内部变量，实现比例和约束
+        "variables": {
+            "mouth_smile_target": 1, // 微笑目标值
+        },
+
+        // 3. 在动作中使用计算好的变量
+        "actions": [
+            {
+                "parameter": "MouthSmile",
+                "to": {"expr": "mouth_smile_target"},
+                "duration": 0.2,
+                "easing": "in_out_sine",
+                "delay": 0.0
+            },
+            {
+                "parameter": "MouthOpen",
+                "to": {"expr": "mouth_open_target"},
+                "duration": 0.2,
+                "easing": "in_out_sine",
+                "delay": 0.0
+            },
+            {
+                "parameter": "MouthSmile",
+                "to": 0.5, // 恢复
+                "duration": 0.2,
+                "easing": "in_out_sine",
+                "delay": {"expr": "duration + 0.2"}
+            }
+        ]
+    }
+}

@@ -2,13 +2,14 @@ import asyncio
 from collections import deque
 from typing import Deque, Optional, cast
 
+from clients.vits_simple_api.client import vits_simple_api_client
+from clients.vts_client.plugin import plugin
 from configs.config import config
 from schemas.actions import Action, Animation, Expression, Say, SoundPlay, SoundPlayData
-from services.animation_manager import animation_manager
 from services.audio_player import audio_player
+from services.idle_animation_manager import animation_manager
 from services.subtitle_broadcaster import subtitle_broadcaster
 from services.tweener import tweener
-from services.vts_plugin import plugin
 from utils.easing import Easing
 from utils.logger import logger
 
@@ -58,16 +59,29 @@ class ActionScheduler:
         logger.info(f"执行动作队列, 动作数量: {len(self.action_queue)}, 循环次数: {loop}.")
         if not self.action_queue:
             return
-        await animation_manager.pause()
+
         actions_to_run = list(self.action_queue)
         self.action_queue.clear()
+
+        # 检查队列中是否存在带TTS的SayAction，以同步所有动作
+        say_action_with_tts_exists = any(
+            action.type == "say" and cast(Say, action).data.tts_text for action in actions_to_run
+        )
+        # 如果没有TTS任务，立即暂停空闲动画
+        if not say_action_with_tts_exists:
+            await animation_manager.pause()
+
+        tts_start_event = asyncio.Event() if say_action_with_tts_exists else None
 
         total_runs = loop + 1
         for i in range(total_runs):
             logger.info(f"执行第 {i + 1} 次, 共 {total_runs} 次")
+            if tts_start_event:
+                tts_start_event.clear()
+
             tasks = []
             for action in actions_to_run:
-                tasks.append(asyncio.create_task(self._execute_action(action)))
+                tasks.append(asyncio.create_task(self._execute_action(action, tts_start_event)))
 
             if tasks:
                 await asyncio.gather(*tasks)
@@ -75,35 +89,56 @@ class ActionScheduler:
         logger.info(f"动作队列执行完成, 共执行 {total_runs} 次")
         await animation_manager.start_all()
 
-    async def _execute_action(self, action: Action):
+    async def _execute_action(self, action: Action, tts_start_event: Optional[asyncio.Event] = None):
         """执行单个动作，延迟执行"""
+        action_type = action.type
+        is_say_with_tts = action_type == "say" and cast(Say, action).data.tts_text
+
+        # 如果有TTS任务，并且当前任务不是那个TTS任务，则等待TTS开始信号
+        if tts_start_event and not is_say_with_tts:
+            logger.info(f"动作 {action.type} 等待 TTS 开始...")
+            await tts_start_event.wait()
+            #logger.info(f"TTS 已开始, 动作 {action.type} 继续执行.")
+
         delay = getattr(action.data, "delay", 0.0)
         if delay > 0:
             await asyncio.sleep(delay)
 
-        action_type = action.type
         logger.info(f"执行动作: {action_type} 延迟 {delay}s")
 
         try:
             if action_type == "say":
                 say_action = cast(Say, action)
 
-                # 广播完整字幕信息
-                await subtitle_broadcaster.broadcast(say_action.model_dump_json())
+                if say_action.data.tts_text:
+                    finished_event = asyncio.Event()
 
-                # 仿RPG游戏对话，逐字播放音频
-                #for text, speed in zip(say_action.data.text, say_action.data.speed):
-                #    wait_time = 1 / speed
-                #    for _ in text:
-                #        data = SoundPlayData(
-                #            path=config.SPEECH_SYNTHESIS.AUDIO_FILE_PATH,
-                #            volume=config.SPEECH_SYNTHESIS.VOLUME,
-                #            speed=1.0,
-                #            duration=0.0,
-                #            delay=0.0,
-                #        )
-                #        audio_player.play(data)
-                #        await asyncio.sleep(wait_time)
+                    # 在后台播放音频
+                    asyncio.create_task(
+                        vits_simple_api_client.speak(
+                            text=say_action.data.tts_text,
+                            started_event=tts_start_event,
+                            finished_event=finished_event,
+                            volume=say_action.data.volume,
+                        ),
+                    )
+
+                    # 等待音频实际开始播放才能广播字幕和暂停动画
+                    if tts_start_event:
+                        await tts_start_event.wait()
+                        # 音频已开始，暂停空闲动画
+                        await animation_manager.pause()
+
+                    logger.info("音频已开始播放, 开始显示字幕...")
+                    await subtitle_broadcaster.broadcast(say_action.model_dump_json())
+
+                    # 等待音频播放完成
+                    await finished_event.wait()
+                    logger.info("音频播放完毕, 发送完成消息.")
+                    await subtitle_broadcaster.broadcast('{"type": "finished"}')
+                else:
+                    # 如果没有 tts_text，则只广播字幕
+                    await subtitle_broadcaster.broadcast(say_action.model_dump_json())
 
             elif action_type == "animation":
                 anim_action = cast(Animation, action)

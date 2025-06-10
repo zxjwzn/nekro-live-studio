@@ -5,6 +5,7 @@ VTubeStudio 插件高级接口
 import contextlib
 from typing import Any, Callable, Coroutine, Dict, List, Optional  # noqa: F401
 
+from configs.config import config
 from utils.logger import logger
 
 from .client import VTSClient
@@ -323,3 +324,9 @@ class VTSPlugin:
             EventSubscriptionResponse: 取消订阅响应。
         """
         return await self.client.unsubscribe_from_event(event_name)
+
+plugin: VTSPlugin = VTSPlugin(
+    plugin_name=config.PLUGIN.PLUGIN_NAME,
+    plugin_developer=config.PLUGIN.PLUGIN_DEVELOPER,
+    endpoint=config.PLUGIN.VTS_ENDPOINT,
+)

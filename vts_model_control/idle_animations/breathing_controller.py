@@ -2,12 +2,11 @@ import asyncio
 import random
 from typing import Type
 
+from configs.base import ConfigBase
 from pydantic import Field
-
+from services.tweener import tweener
 from utils.easing import Easing
 from utils.logger import logger
-from services.tweener import tweener
-from configs.base import ConfigBase
 
 from .base_controller import BaseController
 
@@ -40,21 +39,18 @@ class BreathingController(BaseController[BreathingConfig]):
 
     async def run_cycle(self):
         """执行一次呼吸周期：吸气 -> 呼气"""
-        try:
-            # 吸气
-            await tweener.tween(
-                param=self.config.PARAMETER,
-                end=self.config.MAX_VALUE,
-                duration=self.config.INHALE_DURATION,
-                easing_func=Easing.in_out_sine,
-            )
+        # 吸气
+        await tweener.tween(
+            param=self.config.PARAMETER,
+            end=self.config.MAX_VALUE,
+            duration=self.config.INHALE_DURATION,
+            easing_func=Easing.in_out_sine,
+        )
 
-            # 呼气
-            await tweener.tween(
-                param=self.config.PARAMETER,
-                end=self.config.MIN_VALUE,
-                duration=self.config.EXHALE_DURATION,
-                easing_func=Easing.in_out_sine,
-            )
-        except asyncio.CancelledError:
-            raise
+        # 呼气
+        await tweener.tween(
+            param=self.config.PARAMETER,
+            end=self.config.MIN_VALUE,
+            duration=self.config.EXHALE_DURATION,
+            easing_func=Easing.in_out_sine,
+        )

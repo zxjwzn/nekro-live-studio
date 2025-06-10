@@ -2,12 +2,11 @@ import asyncio
 import random
 from typing import Type
 
+from configs.base import ConfigBase
 from pydantic import Field
-
+from services.tweener import tweener
 from utils.easing import Easing
 from utils.logger import logger
-from services.tweener import tweener
-from configs.base import ConfigBase
 
 from .base_controller import BaseController
 
@@ -41,31 +40,25 @@ class MouthExpressionController(BaseController[MouthExpressionConfig]):
         """执行一次嘴部表情变化周期。"""
         target_smile = random.uniform(self.config.SMILE_MIN, self.config.SMILE_MAX)
         target_open = random.uniform(self.config.OPEN_MIN, self.config.OPEN_MAX)
-        duration = random.uniform(
-            self.config.CHANGE_MIN_DURATION, self.config.CHANGE_MAX_DURATION
-        )
+        duration = random.uniform(self.config.CHANGE_MIN_DURATION, self.config.CHANGE_MAX_DURATION)
         easing_func = tweener.random_easing()
-
-        try:
-            logger.info(
-                f"嘴部表情: "
-                f"Smile: {target_smile:.2f}, "
-                f"Open: {target_open:.2f}, "
-                f"时长: {duration:.2f}s, 缓动: {easing_func.__name__}"
-            )
-            await asyncio.gather(
-                tweener.tween(
-                    param=self.config.SMILE_PARAMETER,
-                    end=target_smile,
-                    duration=duration,
-                    easing_func=easing_func,
-                ),
-                tweener.tween(
-                    param=self.config.OPEN_PARAMETER,
-                    end=target_open,
-                    duration=duration,
-                    easing_func=easing_func,
-                ),
-            )
-        except asyncio.CancelledError:
-            raise
+        logger.info(
+            f"嘴部表情: "
+            f"Smile: {target_smile:.2f}, "
+            f"Open: {target_open:.2f}, "
+            f"时长: {duration:.2f}s, 缓动: {easing_func.__name__}"
+        )
+        await asyncio.gather(
+            tweener.tween(
+                param=self.config.SMILE_PARAMETER,
+                end=target_smile,
+                duration=duration,
+                easing_func=easing_func,
+            ),
+            tweener.tween(
+                param=self.config.OPEN_PARAMETER,
+                end=target_open,
+                duration=duration,
+                easing_func=easing_func,
+            ),
+        )

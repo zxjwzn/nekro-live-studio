@@ -1,14 +1,14 @@
 {
-    "name": "wink_proportional",
+    "name": "wink",
     "type": "animation",
     "data": {
-        "description": "闭左眼的wink动画",
+        "description": "眨单眼,可用于卖萌,装可爱等",
 
         // 1. 声明外部参数 (API接口)
         "params": [
             {
-                "name": "close_duration",
-                "description": "闭眼持续时长",
+                "name": "duration",
+                "description": "眨眼持续的时长(秒)",
                 "type": "float",
                 "default": 1.0
             }
@@ -37,19 +37,11 @@
             },
             {
                 "parameter": "EyeOpenLeft",
-                "to": 0, // 持续闭眼
-                "duration": { "expr": "close_duration" }, // 使用另一个按比例计算的变量
-                "easing": "in_out_sine",
-                // 延迟时间等于闭眼的时间
-                "delay": 0.15
-            },
-            {
-                "parameter": "EyeOpenLeft",
                 "to": 1, // 睁眼
                 "duration": 0.3, // 使用另一个按比例计算的变量
                 "easing": "in_out_sine",
                 // 延迟时间等于闭眼的时间
-                "delay": { "expr": "close_duration + 0.15" }
+                "delay": { "expr": "duration + 0.15" }
             }
         ]
     }

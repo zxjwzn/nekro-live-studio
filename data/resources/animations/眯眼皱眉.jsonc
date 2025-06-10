@@ -1,0 +1,54 @@
+{
+    "name": "frown",
+    "type": "animation",
+    "data": {
+        "description": "皱眉,眯眼凝视的效果,可在生气或无语的时候使用",
+
+        // 1. 声明外部参数 (API接口)
+        "params": [
+            {
+                "name": "duration",
+                "description": "凝视持续的时长(秒)",
+                "type": "float",
+                "default": 1.0
+            }
+        ],
+
+        // 2. 定义内部变量，实现比例和约束
+        "variables": {
+            "close_target": 0.3, // 闭眼目标值
+        },
+
+        // 3. 在动作中使用计算好的变量
+        "actions": [
+            {// 半睁眼
+                "parameter": "EyeOpenLeft",
+                "to": {"expr": "close_target"},
+                "duration": 0.1,//0.1秒内移动
+                "easing": "in_out_sine",
+                "delay": 0.0//等到睁眼完成后执行
+            },
+            {
+                "parameter": "EyeOpenRight",
+                "to": {"expr": "close_target"},
+                "duration": 0.1,
+                "easing": "in_out_sine",
+                "delay": 0.0//等到睁眼完成后执行
+            },
+            {// 皱眉
+                "parameter": "Brows",
+                "to": 0,
+                "duration": 0.1,//0.1秒内移动
+                "easing": "in_out_sine",
+                "delay": 0.0
+            },
+            {// 恢复皱眉
+                "parameter": "Brows",
+                "to": 0.7,
+                "duration": 0.3,
+                "easing": "in_out_sine",
+                "delay": {"expr": "duration + 0.1"}//结束后
+            }
+        ]
+    }
+}

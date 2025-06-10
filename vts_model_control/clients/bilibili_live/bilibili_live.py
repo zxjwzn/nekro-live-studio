@@ -31,7 +31,7 @@ class BilibiliLiveClient:
     """B站直播弹幕客户端"""
 
     def __init__(self):
-        self.room_id = config.BILIBILI_CONFIGS.LIVE_ROOM_ID
+        self.room_id = config.BILIBILI_LIVE.LIVE_ROOM_ID
         self.credential: Optional[Credential] = None
         self.live_danmaku: Optional[live.LiveDanmaku] = None
         self._running = False
@@ -44,7 +44,7 @@ class BilibiliLiveClient:
             logger.warning("未配置B站直播间ID，直播监听功能未启用")
             return
 
-        bili_configs = config.BILIBILI_CONFIGS
+        bili_configs = config.BILIBILI_LIVE
         if all([bili_configs.SESSDATA, bili_configs.BILI_JCT, bili_configs.BUVID3]):
             self.credential = Credential(
                 sessdata=bili_configs.SESSDATA,
@@ -126,9 +126,9 @@ class BilibiliLiveClient:
         
         self._message_count += 1
 
-        trigger_by_count = self._message_count >= config.BILIBILI_CONFIGS.TRIGGER_COUNT
+        trigger_by_count = self._message_count >= config.BILIBILI_LIVE.TRIGGER_COUNT
         time_elapsed = time.time() - self._first_message_time
-        trigger_by_time = time_elapsed > config.BILIBILI_CONFIGS.TRIGGER_TIME and self._first_message_time != 0.0
+        trigger_by_time = time_elapsed > config.BILIBILI_LIVE.TRIGGER_TIME and self._first_message_time != 0.0
 
         if trigger_by_count or trigger_by_time:
             danmaku_obj.is_trigger = True

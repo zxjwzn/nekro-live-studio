@@ -5,6 +5,8 @@ from pathlib import Path
 
 import uvicorn
 from clients.bilibili_live.bilibili_live import BilibiliLiveClient
+from clients.vits_simple_api.client import vits_simple_api_client
+from clients.vts_client.plugin import plugin
 from configs.config import config, reload_config, save_config
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from idle_animations.blink_controller import BlinkController
@@ -23,11 +25,10 @@ from schemas.actions import (
     SoundPlay,
 )
 from services.action_scheduler import action_scheduler
-from services.animation_manager import animation_manager
 from services.animation_player import animation_player
+from services.idle_animation_manager import animation_manager
 from services.subtitle_broadcaster import subtitle_broadcaster
 from services.tweener import tweener
-from services.vts_plugin import plugin
 from services.websocket_manager import manager
 from starlette.staticfiles import StaticFiles
 from utils.logger import logger
@@ -57,9 +58,8 @@ async def lifespan(app: FastAPI):
     animation_manager.register_idle_controller(MouthExpressionController())
 
     asyncio.create_task(animation_manager.start_all())
-
     # 启动B站直播监听
-    if config.BILIBILI_CONFIGS.LIVE_ROOM_ID and config.BILIBILI_CONFIGS.LIVE_ROOM_ID != "0":
+    if config.BILIBILI_LIVE.LIVE_ROOM_ID and config.BILIBILI_LIVE.LIVE_ROOM_ID != "0":
         bili_client = BilibiliLiveClient()
         app.state.bilibili_client = bili_client
         asyncio.create_task(bili_client.start())
@@ -152,7 +152,7 @@ async def websocket_animate_control_endpoint(websocket: WebSocket):
                             message="说话动作已添加",
                         ).model_dump(),
                     )
-                elif action_type == "add_animation":
+                elif action_type == "animation":
                     action = Animation.model_validate(data)
                     logger.info(f"收到 Animation action，已添加到队列: {action}")
                     completion_time = action_scheduler.add_action(action)
@@ -179,13 +179,13 @@ async def websocket_animate_control_endpoint(websocket: WebSocket):
                     action = Execute.model_validate(data)
                     logger.info(f"收到 Execute action: {action}")
                     # 将耗时任务放入后台执行，避免阻塞WebSocket循环
-                    await action_scheduler.execute_queue(loop=action.data.loop)
                     await websocket.send_json(
                         ResponseMessage(
                             status="success",
                             message="动作队列已开始执行",
                         ).model_dump(),
                     )
+                    await action_scheduler.execute_queue(loop=action.data.loop)
                 elif action_type == "sound_play":
                     action = SoundPlay.model_validate(data)
                     logger.info("收到 SoundPlay action")
@@ -228,7 +228,7 @@ async def websocket_animate_control_endpoint(websocket: WebSocket):
                             data={"estimated_completion_time": completion_time},
                         ).model_dump(),
                     )
-                elif action_type == "get_expression":
+                elif action_type == "get_expressions":
                     try:
                         # 返回所有表情列表
                         expressions = await plugin.get_expressions()
@@ -236,7 +236,7 @@ async def websocket_animate_control_endpoint(websocket: WebSocket):
                             ResponseMessage(
                                 status="success",
                                 message="表情列表已获取",
-                                data={"type": "expression", "expressions": expressions},
+                                data={"type": "get_expressions", "expressions": expressions},
                             ).model_dump(),
                         )
                     except Exception as e:
@@ -250,9 +250,6 @@ async def websocket_animate_control_endpoint(websocket: WebSocket):
                         all_wav_files = [p.name for p in audio_dir.glob("*.wav")]
                         logger.info(f"找到 {len(all_wav_files)} 个 .wav 文件")
                         
-                        excluded_file = config.SPEECH_SYNTHESIS.AUDIO_FILE_PATH
-                        if excluded_file in all_wav_files:
-                            all_wav_files.remove(excluded_file)
                         logger.info("准备发送音效列表...")
 
                         await websocket.send_json(

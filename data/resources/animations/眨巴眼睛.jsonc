@@ -1,0 +1,145 @@
+{
+    "name": "眨巴眼睛",
+    "type": "animation",
+    "data": {
+        "description": "快速连续眨眼,可用于卖萌,装可爱等",
+
+        // 1. 声明外部参数 (API接口)
+        "params": [
+
+        ],
+
+        // 2. 定义内部变量，实现比例和约束
+        "variables": {
+            "wait": { "random_float": [0, 0.7] }
+        },
+
+        // 3. 在动作中使用计算好的变量
+        "actions": [
+            {
+                "parameter": "EyeOpenRight",
+                "to": 1, // 睁眼
+                "duration": 0.15,
+                "easing": "in_out_sine",
+                "delay": 0.0
+            },
+            {
+                "parameter": "EyeOpenLeft",
+                "to": 1, // 睁眼
+                "duration": 0.15,
+                "easing": "in_out_sine",
+                "delay": 0.0
+            },
+            {
+                "parameter": "EyeOpenLeft",
+                "to": 0, // 闭眼
+                "duration": 0.1,
+                "easing": "in_out_sine",
+                // 延迟时间等于闭眼的时间
+                "delay": 0.15
+            },
+            {
+                "parameter": "EyeOpenRight",
+                "to": 0, // 闭眼
+                "duration": 0.1,
+                "easing": "in_out_sine",
+                // 延迟时间等于闭眼的时间
+                "delay": 0.15
+            },{
+                "parameter": "EyeOpenRight",
+                "to": 1, // 睁眼
+                "duration": 0.15,
+                "easing": "in_out_sine",
+                "delay": 0.25
+            },
+            {
+                "parameter": "EyeOpenLeft",
+                "to": 1, // 睁眼
+                "duration": 0.15,
+                "easing": "in_out_sine",
+                "delay": 0.25
+            },
+            {
+                "parameter": "EyeOpenLeft",
+                "to": 0, // 闭眼
+                "duration": 0.1,
+                "easing": "in_out_sine",
+                // 延迟时间等于闭眼的时间
+                "delay": 0.4
+            },
+            {
+                "parameter": "EyeOpenRight",
+                "to": 0, // 闭眼
+                "duration": 0.1,
+                "easing": "in_out_sine",
+                // 延迟时间等于闭眼的时间
+                "delay": 0.4
+            },
+            {
+                "parameter": "EyeOpenLeft",
+                "to": 1, // 睁眼
+                "duration": 0.15,
+                "easing": "in_out_sine",
+                // 延迟时间等于闭眼的时间
+                "delay": 0.5
+            },
+            {
+                "parameter": "EyeOpenRight",
+                "to": 1, // 睁眼
+                "duration": 0.15,
+                "easing": "in_out_sine",
+                // 延迟时间等于闭眼的时间
+                "delay": 0.5
+            },
+            {
+                "parameter": "EyeOpenLeft",
+                "to": 1, // 保持睁眼
+                "duration": {"expr": "wait"},
+                "easing": "in_out_sine",
+                // 延迟时间等于闭眼的时间
+                "delay": 0.65
+            },
+            {
+                "parameter": "EyeOpenRight",
+                "to": 1, // 保持睁眼
+                "duration": {"expr": "wait"},
+                "easing": "in_out_sine",
+                // 延迟时间等于闭眼的时间
+                "delay": 0.65
+            },
+            {
+                "parameter": "EyeOpenLeft",
+                "to": 0, // 闭眼
+                "duration": 0.1,
+                "easing": "in_out_sine",
+                // 延迟时间等于闭眼的时间
+                "delay": {"expr": "0.65 + wait"}
+            },
+            {
+                "parameter": "EyeOpenRight",
+                "to": 0, // 闭眼
+                "duration": 0.1,
+                "easing": "in_out_sine",
+                // 延迟时间等于闭眼的时间
+                "delay": {"expr": "0.65 + wait"}
+            },
+            {
+                "parameter": "EyeOpenLeft",
+                "to": 1, // 睁眼
+                "duration": 0.15,
+                "easing": "in_out_sine",
+                // 延迟时间等于闭眼的时间
+                "delay": {"expr": "0.75 + wait"}
+            },
+            {
+                "parameter": "EyeOpenRight",
+                "to": 1, // 睁眼
+                "duration": 0.15,
+                "easing": "in_out_sine",
+                // 延迟时间等于闭眼的时间
+                "delay": {"expr": "0.75 + wait"}
+            }
+
+        ]
+    }
+}

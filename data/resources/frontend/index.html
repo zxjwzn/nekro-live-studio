@@ -66,6 +66,8 @@
             let currentDisplayTask = null;
             let autoClearTimeout = null;
             let heartbeatInterval = null;
+            let forceFinish = false;
+            let currentMessageData = null;
 
             function connect() {
                 // 动态确定WebSocket地址
@@ -89,6 +91,8 @@
                         const message = JSON.parse(event.data);
                         if (message.type === 'say') {
                             handleSayMessage(message.data);
+                        } else if (message.type === 'finished') {
+                            handleFinishMessage();
                         }
                     } catch (error) {
                         console.error('解析消息失败:', error);
@@ -129,6 +133,13 @@
                 }
             }
 
+            function handleFinishMessage() {
+                forceFinish = true;
+                if (currentDisplayTask) {
+                    currentDisplayTask.abort();
+                }
+            }
+
             function handleSayMessage(data) {
                 // 如果有正在执行的任务，立即中止
                 if (currentDisplayTask) {
@@ -139,10 +150,19 @@
                     clearTimeout(autoClearTimeout);
                     autoClearTimeout = null;
                 }
-
+                
+                forceFinish = false; // 为新消息重置
+                currentMessageData = data;
                 currentDisplayTask = new AbortController();
                 displayMessage(data, currentDisplayTask.signal).catch(err => {
-                    if (err.name !== 'AbortError') {
+                    if (err.name === 'AbortError') {
+                        if (forceFinish) {
+                            console.log('Display task force-finished.');
+                            subtitleTextElement.textContent = currentMessageData.text; // 显示完整文本
+                        } else {
+                            console.log("Display task was aborted by a new message.");
+                        }
+                    } else {
                         console.error("显示任务出错:", err);
                     }
                 });
@@ -162,27 +182,22 @@
                 // 重置字体大小以进行新的调整
                 subtitleContainer.style.fontSize = '1em';
 
-                for (let i = 0; i < data.text.length; i++) {
-                    const segment = data.text[i];
-                    const speed = data.speed[i] > 0 ? data.speed[i] : 10; // 字符/秒
-                    const interval = 1000 / speed;
+                const text = data.text;
+                const speed = data.speed > 0 ? data.speed : 10; // 字符/秒
+                const interval = 1000 / speed;
 
-                    for (const char of segment) {
-                        if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
-                        
-                        subtitleTextElement.textContent += char;
-                        checkAndAdjustLayout();
-                        await sleep(interval);
-                    }
-                    // 每段话说完加一个换行
-                    if (i < data.text.length - 1) {
-                         subtitleTextElement.textContent += '\n';
-                    }
+                for (const char of text) {
+                    if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+                    
+                    subtitleTextElement.textContent += char;
+                    checkAndAdjustLayout();
+                    await sleep(interval);
                 }
                 
                 // 全部显示完毕后，设置3秒后自动清除
                 autoClearTimeout = setTimeout(() => {
                     subtitleTextElement.textContent = '';
+                    currentMessageData = null;
                 }, 3000);
             }
 

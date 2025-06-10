@@ -1,0 +1,29 @@
+{
+    "name": "摇头",
+    "type": "animation",
+    "data": {
+        "description": "左右摇头，可用于表达拒绝或无语",
+        
+        // 1. 声明外部参数 (API接口)
+        "params": [
+
+        ],
+
+        // 2. 定义内部变量，实现比例和约束
+        "variables": {
+            "FaceX_Max": 30, // 最大摇头角度
+            "FaceX_Min": -30, // 最小摇头角度
+            "magnitude": { "random_float": [0.75, 1] }, // 摇头幅度
+        },
+
+        "actions": [
+            {// 半睁眼
+                "parameter": "FaceAngleX",
+                "to": {"expr": "close_target"},
+                "duration": 0.1,//0.1秒内移动
+                "easing": "in_out_sine",
+                "delay": 0.0//等到睁眼完成后执行
+            },
+        ]
+    }
+}

@@ -41,22 +41,26 @@ class PluginConfig(ConfigBase):
     )
 
 
-class SpeechSynthesisConfig(ConfigBase):
-    """RPG风格语音合成配置"""
+class SubtitleConfig(ConfigBase):
+    """字幕配置"""
 
-    ENABLED: bool = Field(default=True, description="是否启用RPG风格语音播放")
-    TEXT_PER_SECOND_RATE: float = Field(default=5.0, description="每秒播放的字数 (播放速率)")
-    AUDIO_FILE_PATH: str = Field(
-        default="vocal_.wav",
-        description="用于播放的音频文件路径",
-    )
-    VOLUME: float = Field(default=0.5, ge=0.0, le=1.0, description="播放音量 (范围 0.0 到 1.0)")
+    ENABLED: bool = Field(default=True, description="是否字幕展示")
+    SUBTITLE_LANG: str = Field(default="zh", description="字幕语言")
+    TEXT_PER_SECOND_RATE: float = Field(default=6.0, description="每秒展示的字数 (播放速率)")
     FONT_PATH: str = Field(default="data/resources/fonts/JinNianYeYaoJiaYouYa.ttf", description="字体路径")
     FONT_COLOR: str = Field(default="#ffffff", description="字体颜色, 16进制颜色码")
     FONT_EDGE_COLOR: str = Field(default="#000000", description="字体描边颜色, 16进制颜色码")
     FONT_EDGE_WIDTH: int = Field(default=1, description="字体描边宽度")
     FONT_SIZE: int = Field(default=50, description="字体大小")
 
+class VITSSimpleAPIConfig(ConfigBase):
+    """文本转语音合成配置"""
+    ENABLED: bool = Field(default=True, description="是否启用文本转语音合成")
+    HOST_AND_PORT: str = Field(default="http://127.0.0.1:23456/", description="文本转语音合成API地址和端口")
+    VOLUME: float = Field(default=0.7, description="播放的语音音量")
+    VOICE_LANG: str = Field(default="ja", description="语音语言")
+    SPEAKER_ID: str = Field(default="0", description= "说话人id")
+    NAME: Literal["VITS", "Bert-VITS2"] = Field(default="Bert-VITS2", description="使用的文本转语音服务")
 
 class BilibiliConfigs(ConfigBase):
     """Bilibili直播配置"""
@@ -79,10 +83,10 @@ class VTSModelControlConfig(ConfigBase):
         title="应用日志级别",
     )
     PLUGIN: PluginConfig = Field(default_factory=PluginConfig)
-    SPEECH_SYNTHESIS: SpeechSynthesisConfig = Field(default_factory=SpeechSynthesisConfig)
-    MODELS: list[Path] = Field(default_factory=list, description="模型文件路径列表")
+    SUBTITLE: SubtitleConfig = Field(default_factory=SubtitleConfig)
     API: ApiConfig = Field(default_factory=ApiConfig)
-    BILIBILI_CONFIGS: BilibiliConfigs = Field(default_factory=BilibiliConfigs)
+    BILIBILI_LIVE: BilibiliConfigs = Field(default_factory=BilibiliConfigs)
+    TTS: VITSSimpleAPIConfig = Field(default_factory=VITSSimpleAPIConfig)
 
 
 try:

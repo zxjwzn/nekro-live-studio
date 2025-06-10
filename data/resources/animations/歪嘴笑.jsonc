@@ -1,0 +1,56 @@
+{
+    "name": "歪嘴笑",
+    "type": "animation",
+    "data": {
+        "description": "歪嘴笑,可用于表达开心,调皮等",
+
+        // 1. 声明外部参数 (API接口)
+        "params": [
+            {
+                "name": "duration",
+                "description": "歪嘴笑持续的时长(秒)",
+                "type": "float",
+                "default": 1.0
+            }
+        ],
+
+        // 2. 定义内部变量，实现比例和约束
+        "variables": {
+            "mouth_x_target": 1, // 撇嘴目标值
+            "mouth_smile_target": 1, // 微笑目标值
+            "mouth_open_target": 0, // 张嘴目标值
+        },
+
+        // 3. 在动作中使用计算好的变量
+        "actions": [
+            {
+                "parameter": "MouthX",
+                "to": {"expr": "mouth_x_target"}, // 撇嘴
+                "duration": 0.3,
+                "easing": "out_back",
+                "delay": 0.0
+            },
+            {
+                "parameter": "MouthSmile",
+                "to": {"expr": "mouth_smile_target"},
+                "duration": 0.3,
+                "easing": "out_back",
+                "delay": 0.0
+            },
+            {
+                "parameter": "MouthOpen",
+                "to": {"expr": "mouth_open_target"},
+                "duration": 0.3,
+                "easing": "out_back",
+                "delay": 0.0
+            },
+            {
+                "parameter": "MouthX",
+                "to": 0, // 恢复
+                "duration": 0.3,
+                "easing": "out_sine",
+                "delay": {"expr": "duration + 0.3"}
+            },
+        ]
+    }
+}
