@@ -108,7 +108,7 @@ class AudioPlayer:
                     logger.warning("ffplay 的 stdin 已关闭，停止写入音频流。")
                     break
                 proc.stdin.write(chunk)
-                if started_event :
+                if started_event and not started_event.is_set():
                     started_event.set()
                 await proc.stdin.drain()
         except Exception as e:

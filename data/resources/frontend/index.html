@@ -68,6 +68,7 @@
             let heartbeatInterval = null;
             let forceFinish = false;
             let currentMessageData = null;
+            let waitingForNewMessage = false; // 新增：标记是否在等待新消息
 
             function connect() {
                 // 动态确定WebSocket地址
@@ -134,21 +135,27 @@
             }
 
             function handleFinishMessage() {
+                console.log("收到finish消息，准备完成当前字幕显示");
                 forceFinish = true;
                 if (currentDisplayTask) {
                     currentDisplayTask.abort();
                 }
+                
+                // 如果当前有消息数据，直接显示完整文本并等待2秒后清空
+                if (currentMessageData) {
+                    showCompleteTextAndWaitToClear();
+                }
             }
 
             function handleSayMessage(data) {
+                console.log("收到新的say消息");
+                // 收到新消息时，取消等待状态并清除自动清空计时器
+                waitingForNewMessage = false;
+                clearAutoClearTimeout();
+                
                 // 如果有正在执行的任务，立即中止
                 if (currentDisplayTask) {
                     currentDisplayTask.abort();
-                }
-                // 清除自动清空计时器
-                if(autoClearTimeout) {
-                    clearTimeout(autoClearTimeout);
-                    autoClearTimeout = null;
                 }
                 
                 forceFinish = false; // 为新消息重置
@@ -158,7 +165,7 @@
                     if (err.name === 'AbortError') {
                         if (forceFinish) {
                             console.log('Display task force-finished.');
-                            subtitleTextElement.textContent = currentMessageData.text; // 显示完整文本
+                            showCompleteTextAndWaitToClear();
                         } else {
                             console.log("Display task was aborted by a new message.");
                         }
@@ -166,6 +173,32 @@
                         console.error("显示任务出错:", err);
                     }
                 });
+            }
+
+            function showCompleteTextAndWaitToClear() {
+                if (currentMessageData) {
+                    // 立即显示完整文本
+                    subtitleTextElement.textContent = currentMessageData.text;
+                    console.log("显示完整文本，等待2秒后清空");
+                }
+                
+                // 等待2秒后清空字幕
+                waitingForNewMessage = true;
+                autoClearTimeout = setTimeout(() => {
+                    if (waitingForNewMessage) {
+                        console.log("2秒内没有收到新消息，清空字幕");
+                        subtitleTextElement.textContent = '';
+                        currentMessageData = null;
+                        waitingForNewMessage = false;
+                    }
+                }, 2000);
+            }
+
+            function clearAutoClearTimeout() {
+                if (autoClearTimeout) {
+                    clearTimeout(autoClearTimeout);
+                    autoClearTimeout = null;
+                }
             }
 
             async function displayMessage(data, signal) {
@@ -194,11 +227,17 @@
                     await sleep(interval);
                 }
                 
-                // 全部显示完毕后，设置3秒后自动清除
+                // 字幕展示完毕后，等待2秒，如果没有新消息则清空
+                console.log("字幕展示完毕，等待2秒后清空（除非收到新消息）");
+                waitingForNewMessage = true;
                 autoClearTimeout = setTimeout(() => {
-                    subtitleTextElement.textContent = '';
-                    currentMessageData = null;
-                }, 3000);
+                    if (waitingForNewMessage) {
+                        console.log("2秒内没有收到新消息，清空字幕");
+                        subtitleTextElement.textContent = '';
+                        currentMessageData = null;
+                        waitingForNewMessage = false;
+                    }
+                }, 2000);
             }
 
             function applyTextStroke(edgeColor, edgeWidth) {

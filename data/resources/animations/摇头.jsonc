@@ -14,16 +14,24 @@
             "FaceX_Max": 30, // 最大摇头角度
             "FaceX_Min": -30, // 最小摇头角度
             "magnitude": { "random_float": [0.75, 1] }, // 摇头幅度
+            "duration": { "random_float": [0.5, 1.5] }
         },
 
         "actions": [
-            {// 半睁眼
+            {// 摇头
                 "parameter": "FaceAngleX",
-                "to": {"expr": "close_target"},
-                "duration": 0.1,//0.1秒内移动
+                "to": {"expr": "FaceX_Max * magnitude"},
+                "duration": {"expr": "duration * magnitude"},
                 "easing": "in_out_sine",
-                "delay": 0.0//等到睁眼完成后执行
+                "delay": 0.0
             },
+            {// 摇头
+                "parameter": "FaceAngleX",
+                "to": {"expr": "FaceX_Min * magnitude"},
+                "duration": {"expr": "duration * magnitude"},
+                "easing": "in_out_sine",
+                "delay": 0.0
+            }
         ]
     }
 }
