@@ -24,9 +24,9 @@ class BaseController(Generic[TConfig], ABC):
         self.plugin = plugin
         self._stop_event = asyncio.Event()
         self._task: Optional[asyncio.Task] = None
-        self.skip_pause = False
+        self.is_idle_animation = False
         self.config: TConfig = self.get_config_class().load_config(
-            self.get_config_path()
+            self.get_config_path(),
         )
         self.config.dump_config(self.get_config_path())
 

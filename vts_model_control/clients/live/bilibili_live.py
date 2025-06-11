@@ -5,10 +5,11 @@ import re
 import time
 from typing import Optional
 
+import qrcode
 from bilibili_api import Credential, live, sync
 from bilibili_api.exceptions.LiveException import LiveException
 from bilibili_api.login_v2 import QrCodeLogin, QrCodeLoginEvents
-from configs.config import config
+from configs.config import config, save_config
 from schemas.bilibili_live import Danmaku
 from utils.logger import logger
 
@@ -47,6 +48,13 @@ class BilibiliLiveClient:
 
         try:
             self.credential = sync(self._login())
+            if self.credential:
+                cookies = self.credential.get_cookies()
+                config.BILIBILI_LIVE.SESSDATA = cookies["SESSDATA"]
+                config.BILIBILI_LIVE.BUVID3 = cookies["buvid3"]
+                config.BILIBILI_LIVE.BILI_JCT = cookies["bili_jct"]
+                config.BILIBILI_LIVE.AC_TIME_VALUE = cookies["ac_time_value"]
+                save_config()
         except Exception:
             logger.exception("B站登录过程中发生未知错误")
             self.credential = None
@@ -65,18 +73,6 @@ class BilibiliLiveClient:
         self.live_danmaku.logger = logger  # type: ignore
         self._register_events()
 
-    def _log_credential(self, cred: Credential):
-        """记录凭据信息到日志"""
-        logger.info("请将以下新凭据保存到您的配置文件中以备后用:")
-        creds_str = (
-            f"SESSDATA: {cred.sessdata}\n"
-            f"BILI_JCT: {cred.bili_jct}\n"
-            f"BUVID3: {cred.buvid3}\n"
-            f"DEDEUSERID: {cred.dedeuserid}\n"
-            f"AC_TIME_VALUE: {cred.ac_time_value}"
-        )
-        logger.info(creds_str)
-
     async def _login(self) -> Optional[Credential]:
         """尝试使用缓存凭据登录, 如果失败则尝试二维码登录"""
         bili_configs = config.BILIBILI_LIVE
@@ -90,17 +86,16 @@ class BilibiliLiveClient:
                 ac_time_value=bili_configs.AC_TIME_VALUE or None,
             )
             logger.info("检测到缓存凭据, 正在验证...")
-            if not credential.check_valid():
+            if not await credential.check_valid():
                 logger.warning("缓存凭据无效, 将尝试扫码登录")
                 credential = None
             else:
                 logger.info("缓存凭据有效")
-                if credential.check_refresh():
+                if await credential.check_refresh():
                     logger.info("凭据即将过期, 正在尝试刷新...")
                     try:
                         await credential.refresh()
                         logger.info("凭据刷新成功")
-                        self._log_credential(credential)
                     except Exception:
                         logger.exception("凭据刷新失败, 将尝试扫码登录")
                         credential = None
@@ -112,15 +107,18 @@ class BilibiliLiveClient:
         logger.info("无有效缓存凭据, 将启动扫码登录...")
         new_credential = await self._qr_login()
         if new_credential:
-            self._log_credential(new_credential)
-        return new_credential
+            return new_credential
+        return None
 
     async def _qr_login(self) -> Optional[Credential]:
         """通过二维码登录B站"""
         try:
             login_qrcode = QrCodeLogin()
             await login_qrcode.generate_qrcode()
-            logger.info(f"请在3分钟内扫描二维码登录:\n{login_qrcode.get_qrcode_terminal()}")
+            qr = qrcode.QRCode() # type: ignore
+            qr.add_data(login_qrcode._QrCodeLogin__qr_link)  # type: ignore # noqa: SLF001
+            logger.info("请在3分钟内扫描二维码登录:")
+            qr.print_ascii()
 
 
             login_start_time = time.time()

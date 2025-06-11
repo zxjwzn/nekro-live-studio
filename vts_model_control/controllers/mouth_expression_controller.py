@@ -36,6 +36,10 @@ class MouthExpressionController(BaseController[MouthExpressionConfig]):
     def get_config_filename(cls) -> str:
         return "mouth_expression.yaml"
 
+    def __init__(self):
+        super().__init__()
+        self.is_idle_animation = True
+
     async def run_cycle(self):
         """执行一次嘴部表情变化周期。"""
         target_smile = random.uniform(self.config.SMILE_MIN, self.config.SMILE_MAX)

@@ -69,6 +69,7 @@ class AudioPlayer:
         started_event: Optional[asyncio.Event] = None,
         finished_event: Optional[asyncio.Event] = None,
         volume: Optional[float] = None,
+        analysis_queue: Optional[asyncio.Queue[Optional[bytes]]] = None,
     ) -> bool:
         """
         从音频流实时播放音频。
@@ -108,6 +109,8 @@ class AudioPlayer:
                     logger.warning("ffplay 的 stdin 已关闭，停止写入音频流。")
                     break
                 proc.stdin.write(chunk)
+                if analysis_queue:
+                    await analysis_queue.put(chunk)
                 if started_event and not started_event.is_set():
                     started_event.set()
                 await proc.stdin.drain()
@@ -117,6 +120,8 @@ class AudioPlayer:
                 proc.kill()
             return False
         finally:
+            if analysis_queue:
+                await analysis_queue.put(None)  # 发送结束信号
             if not proc.stdin.is_closing():
                 proc.stdin.close()
             await proc.wait()

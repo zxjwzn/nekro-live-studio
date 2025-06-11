@@ -36,6 +36,7 @@ class AnimationData(BaseModel):
     duration: float = Field(description="动画持续时间(秒)")
     delay: float = Field(default=0.0, description="延迟执行的时间(秒)")
     easing: str = Field(default="linear", description="缓动函数名称")
+    priority: int = Field(default=0, description="缓动优先级, 0是最低")
 
 
 class ExpressionData(BaseModel):

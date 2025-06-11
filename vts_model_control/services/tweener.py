@@ -1,7 +1,7 @@
 import asyncio
 import contextlib
 import random
-from typing import Dict, Optional, Set
+from typing import Dict, Optional, Set, Tuple
 
 from clients.vtuber_studio.plugin import plugin
 from utils.easing import Easing
@@ -16,7 +16,7 @@ class Tweener:
     def __init__(self, keep_alive_interval: float = 0.8):
         self._plugin = plugin
         self.controlled_params: Dict[str, float] = {}
-        self._active_tweens: Dict[str, int] = {}
+        self._active_tweens: Dict[str, Tuple[asyncio.Task, int]] = {}
         self._lock = asyncio.Lock()
         self._keep_alive_task: Optional[asyncio.Task] = None
         self._keep_alive_interval = keep_alive_interval
@@ -68,10 +68,11 @@ class Tweener:
         start: Optional[float] = None,
         mode: str = "set",
         fps: int = 60,
+        priority: int = 0,
     ):
         """
         优化后的缓动函数：保证在 duration 时间内完成，并由保活机制接管。
-        
+
         Args:
             param: 参数名称
             end: 目标值
@@ -80,6 +81,7 @@ class Tweener:
             start: 起始值，如果为None则使用当前控制的参数值，如果没有当前值则默认为0
             mode: 设置模式
             fps: 帧率
+            priority: 缓动优先级，默认为0。高优先级会中断正在进行的低优先级缓动。
         """
         if not self._plugin:
             logger.error("Tweener 未启动，请先调用 start() 方法.")
@@ -90,20 +92,52 @@ class Tweener:
             async with self._lock:
                 start = self.controlled_params.get(param, 0.0)
 
+        current_task = asyncio.current_task()
+        if not current_task:
+            logger.error("无法在 tween 中获取当前任务.")
+            return
+
         # 如果 duration 小于等于 0 或 start 等于 end，则直接设置参数值并返回
         if duration <= 0 or start == end:
             async with self._lock:
+                if param in self._active_tweens:
+                    existing_task, existing_priority = self._active_tweens[param]
+                    if priority <= existing_priority:
+                        logger.debug(
+                            f"参数 {param} 的即时设置被拒绝，因为已存在一个优先级为 "
+                            f"{existing_priority} 的缓动 (新请求优先级: {priority}).",
+                        )
+                        return
+                    logger.debug(
+                        f"参数 {param} 的即时设置正在取消一个优先级为 {existing_priority} 的缓动 (新请求优先级: {priority}).",
+                    )
+                    existing_task.cancel()
+                    del self._active_tweens[param]
+
                 self.controlled_params[param] = end
             await self._plugin.set_parameter_value(param, end, mode=mode)
             return
-    
+
         loop = asyncio.get_event_loop()
         start_time = loop.time()
         steps = max(1, int(duration * fps))
         interval = duration / steps
 
         async with self._lock:
-            self._active_tweens[param] = self._active_tweens.get(param, 0) + 1
+            if param in self._active_tweens:
+                existing_task, existing_priority = self._active_tweens[param]
+                if priority <= existing_priority:
+                    logger.debug(
+                        f"参数 {param} 的缓动被拒绝，因为已存在一个优先级为 "
+                        f"{existing_priority} 的缓动在运行 (新请求优先级: {priority}).",
+                    )
+                    return
+                logger.debug(
+                    f"正在为参数 {param} 取消已存在的缓动 (优先级 {existing_priority})，以执行新的缓动 (优先级 {priority}).",
+                )
+                existing_task.cancel()
+
+            self._active_tweens[param] = (current_task, priority)
 
         try:
             for step in range(steps):
@@ -112,19 +146,23 @@ class Tweener:
                 async with self._lock:
                     self.controlled_params[param] = value
                 await self._plugin.set_parameter_value(param, value, mode=mode)
-                
+
                 now = loop.time()
                 next_time = start_time + (step + 1) * interval
                 sleep_time = next_time - now
                 if sleep_time > 0:
                     await asyncio.sleep(sleep_time)
+        except asyncio.CancelledError:
+            logger.debug(f"参数 {param} 的缓动任务被取消.")
+            raise  # 重新抛出异常以确保外部调用者知道它被取消了
         finally:
             async with self._lock:
+                # 仅当此任务仍是活动任务时才移除
                 if param in self._active_tweens:
-                    self._active_tweens[param] -= 1
-                    if self._active_tweens[param] <= 0:
+                    active_task, _ = self._active_tweens[param]
+                    if active_task is current_task:
                         del self._active_tweens[param]
-            
+
     def release_all(self):
         """释放所有参数的控制权。"""
         self.controlled_params.clear()

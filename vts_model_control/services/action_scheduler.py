@@ -7,7 +7,7 @@ from clients.vtuber_studio.plugin import plugin
 from configs.config import config
 from schemas.actions import Action, Animation, Expression, Say, SoundPlay, SoundPlayData
 from services.audio_player import audio_player
-from services.idle_animation_manager import animation_manager
+from services.controller_manager import controller_manager
 from services.subtitle_broadcaster import subtitle_broadcaster
 from services.tweener import tweener
 from utils.easing import Easing
@@ -70,7 +70,7 @@ class ActionScheduler:
         )
         # 如果没有TTS任务，立即暂停空闲动画
         if not say_action_with_tts_exists:
-            await animation_manager.pause()
+            await controller_manager.pause()
 
         tts_start_event = asyncio.Event() if say_action_with_tts_exists else None
 
@@ -88,7 +88,7 @@ class ActionScheduler:
                 await asyncio.gather(*tasks)
 
         logger.info(f"动作队列执行完成, 共执行 {total_runs} 次")
-        await animation_manager.start_all()
+        await controller_manager.start_all()
 
     async def _execute_action(self, action: Action, tts_start_event: Optional[asyncio.Event] = None):
         """执行单个动作，延迟执行"""
@@ -145,17 +145,19 @@ class ActionScheduler:
 
                         # 音频已开始, 如果是第一个, 则触发全局事件并暂停空闲动画
                         if is_first_tts_runner:
-                            await animation_manager.pause()
+                            await controller_manager.pause()
                             if tts_start_event:
                                 tts_start_event.set()
 
                         logger.info("音频已开始播放, 开始显示字幕...")
+                        await controller_manager.start_animation("SayController")
                         await subtitle_broadcaster.broadcast(say_action.model_dump_json())
 
                         # 等待音频播放完成
                         await finished_event.wait()
                         logger.info("音频播放完毕, 发送完成消息.")
                         await subtitle_broadcaster.broadcast('{"type": "finished"}')
+                        await controller_manager.stop_animation_without_wait("SayController")
                         await speak_task  # 确保后台任务最终完成
                 else:
                     # 如果没有 tts_text，则只广播字幕
@@ -174,6 +176,7 @@ class ActionScheduler:
                     end=anim_action.data.target,
                     duration=anim_action.data.duration,
                     easing_func=easing_func,
+                    priority=max(anim_action.data.priority, 1),
                 )
 
             elif action_type == "expression":

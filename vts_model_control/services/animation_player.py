@@ -136,6 +136,7 @@ class AnimationPlayer:
             duration=float(duration),
             delay=float(action_delay) + global_delay,
             easing=action_template.easing,
+            priority=3,
         )
 
     def _evaluate_value(

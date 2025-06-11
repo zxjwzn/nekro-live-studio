@@ -55,6 +55,7 @@ class BodySwingController(BaseController[BodySwingConfig]):
 
     def __init__(self):
         super().__init__()
+        self.is_idle_animation = True
         self.eye_config_path = CONFIG_DIR / "eye_follow.yaml"
         self.eye_config = EyeFollowConfig.load_config(self.eye_config_path)
         self.eye_config.dump_config(self.eye_config_path)

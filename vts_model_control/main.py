@@ -8,11 +8,12 @@ from clients.live.bilibili_live import bilibili_live_client
 from clients.vits_simple_api.client import vits_simple_api_client
 from clients.vtuber_studio.plugin import plugin
 from configs.config import config, reload_config, save_config
+from controllers.blink_controller import BlinkController
+from controllers.body_swing_controller import BodySwingController
+from controllers.breathing_controller import BreathingController
+from controllers.mouth_expression_controller import MouthExpressionController
+from controllers.say_controller import SayController
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from idle_animations.blink_controller import BlinkController
-from idle_animations.body_swing_controller import BodySwingController
-from idle_animations.breathing_controller import BreathingController
-from idle_animations.mouth_expression_controller import MouthExpressionController
 from pydantic import ValidationError
 from schemas.actions import (
     Animation,
@@ -26,7 +27,7 @@ from schemas.actions import (
 )
 from services.action_scheduler import action_scheduler
 from services.animation_player import animation_player
-from services.idle_animation_manager import animation_manager
+from services.controller_manager import controller_manager
 from services.subtitle_broadcaster import subtitle_broadcaster
 from services.tweener import tweener
 from services.websocket_manager import manager
@@ -52,19 +53,21 @@ async def lifespan(app: FastAPI):
     # 注册并启动空闲动画
     logger.info("正在注册动画控制器...")
 
-    animation_manager.register_idle_controller(BlinkController())
-    animation_manager.register_idle_controller(BreathingController())
-    animation_manager.register_idle_controller(BodySwingController())
-    animation_manager.register_idle_controller(MouthExpressionController())
+    controller_manager.register_idle_controller(BlinkController())
+    controller_manager.register_idle_controller(BreathingController())
+    controller_manager.register_idle_controller(BodySwingController())
+    controller_manager.register_idle_controller(MouthExpressionController())
+    controller_manager.register_idle_controller(SayController())
 
-    asyncio.create_task(animation_manager.start_all())
+    asyncio.create_task(controller_manager.start_all())
     asyncio.create_task(bilibili_live_client.start())
 
     yield
 
     # Shutdown
     logger.info("应用关闭中...")
-    await animation_manager.stop_all()
+    save_config()
+    await controller_manager.stop_all()
     tweener.release_all()
     await tweener.stop()
     await plugin.disconnect()

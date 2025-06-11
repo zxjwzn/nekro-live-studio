@@ -35,7 +35,7 @@ class BreathingController(BaseController[BreathingConfig]):
 
     def __init__(self):
         super().__init__()
-        self.skip_pause = True
+        self.is_idle_animation = True
 
     async def run_cycle(self):
         """执行一次呼吸周期：吸气 -> 呼气"""
