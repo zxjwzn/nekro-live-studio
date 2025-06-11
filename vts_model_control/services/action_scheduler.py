@@ -3,7 +3,7 @@ from collections import deque
 from typing import Deque, Optional, cast
 
 from clients.vits_simple_api.client import vits_simple_api_client
-from clients.vts_client.plugin import plugin
+from clients.vtuber_studio.plugin import plugin
 from configs.config import config
 from schemas.actions import Action, Animation, Expression, Say, SoundPlay, SoundPlayData
 from services.audio_player import audio_player

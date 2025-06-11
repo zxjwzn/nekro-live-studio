@@ -3,7 +3,7 @@ import contextlib
 import random
 from typing import Dict, Optional, Set
 
-from clients.vts_client.plugin import plugin
+from clients.vtuber_studio.plugin import plugin
 from utils.easing import Easing
 from utils.logger import logger
 

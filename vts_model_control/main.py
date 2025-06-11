@@ -4,9 +4,9 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import uvicorn
-from clients.bilibili_live.bilibili_live import BilibiliLiveClient
+from clients.live.bilibili_live import bilibili_live_client
 from clients.vits_simple_api.client import vits_simple_api_client
-from clients.vts_client.plugin import plugin
+from clients.vtuber_studio.plugin import plugin
 from configs.config import config, reload_config, save_config
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from idle_animations.blink_controller import BlinkController
@@ -58,14 +58,7 @@ async def lifespan(app: FastAPI):
     animation_manager.register_idle_controller(MouthExpressionController())
 
     asyncio.create_task(animation_manager.start_all())
-    # 启动B站直播监听
-    if config.BILIBILI_LIVE.LIVE_ROOM_ID and config.BILIBILI_LIVE.LIVE_ROOM_ID != "0":
-        bili_client = BilibiliLiveClient()
-        app.state.bilibili_client = bili_client
-        asyncio.create_task(bili_client.start())
-    else:
-        app.state.bilibili_client = None
-        logger.info("未配置B站直播间ID, 跳过B站直播监听")
+    asyncio.create_task(bilibili_live_client.start())
 
     yield
 
@@ -74,8 +67,6 @@ async def lifespan(app: FastAPI):
     await animation_manager.stop_all()
     tweener.release_all()
     await tweener.stop()
-    if hasattr(app.state, "bilibili_client") and app.state.bilibili_client:
-        await app.state.bilibili_client.stop()
     await plugin.disconnect()
     logger.info("应用已关闭")
 

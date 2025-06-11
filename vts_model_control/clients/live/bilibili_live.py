@@ -5,8 +5,9 @@ import re
 import time
 from typing import Optional
 
-from bilibili_api import Credential, live
+from bilibili_api import Credential, live, sync
 from bilibili_api.exceptions.LiveException import LiveException
+from bilibili_api.login_v2 import QrCodeLogin, QrCodeLoginEvents
 from configs.config import config
 from schemas.bilibili_live import Danmaku
 from utils.logger import logger
@@ -44,27 +45,111 @@ class BilibiliLiveClient:
             logger.warning("未配置B站直播间ID，直播监听功能未启用")
             return
 
-        bili_configs = config.BILIBILI_LIVE
-        if all([bili_configs.SESSDATA, bili_configs.BILI_JCT, bili_configs.BUVID3]):
-            self.credential = Credential(
-                sessdata=bili_configs.SESSDATA,
-                bili_jct=bili_configs.BILI_JCT,
-                buvid3=bili_configs.BUVID3,
-                dedeuserid=bili_configs.DEDEUSERID or None,
-                ac_time_value=bili_configs.AC_TIME_VALUE or None,
-            )
-            logger.info(f"已创建B站直播凭据, SESSDATA: ...{bili_configs.SESSDATA[-4:]}")
-        else:
-            logger.info("未提供完整的B站凭据, 将以游客身份连接")
+        try:
+            self.credential = sync(self._login())
+        except Exception:
+            logger.exception("B站登录过程中发生未知错误")
+            self.credential = None
+
+        if not self.credential:
+            logger.error("B站登录失败, 直播监听功能将不可用。")
+            return
+
+        logger.info("B站登录成功")
 
         self.live_danmaku = live.LiveDanmaku(
             room_display_id=int(self.room_id),
             credential=self.credential,
             debug=config.LOG_LEVEL == "DEBUG",
         )
-        self.live_danmaku.logger = logger # type: ignore
+        self.live_danmaku.logger = logger  # type: ignore
         self._register_events()
 
+    def _log_credential(self, cred: Credential):
+        """记录凭据信息到日志"""
+        logger.info("请将以下新凭据保存到您的配置文件中以备后用:")
+        creds_str = (
+            f"SESSDATA: {cred.sessdata}\n"
+            f"BILI_JCT: {cred.bili_jct}\n"
+            f"BUVID3: {cred.buvid3}\n"
+            f"DEDEUSERID: {cred.dedeuserid}\n"
+            f"AC_TIME_VALUE: {cred.ac_time_value}"
+        )
+        logger.info(creds_str)
+
+    async def _login(self) -> Optional[Credential]:
+        """尝试使用缓存凭据登录, 如果失败则尝试二维码登录"""
+        bili_configs = config.BILIBILI_LIVE
+        credential = None
+        if bili_configs.SESSDATA and bili_configs.BILI_JCT:
+            credential = Credential(
+                sessdata=bili_configs.SESSDATA,
+                bili_jct=bili_configs.BILI_JCT,
+                buvid3=bili_configs.BUVID3,
+                dedeuserid=bili_configs.DEDEUSERID or None,
+                ac_time_value=bili_configs.AC_TIME_VALUE or None,
+            )
+            logger.info("检测到缓存凭据, 正在验证...")
+            if not credential.check_valid():
+                logger.warning("缓存凭据无效, 将尝试扫码登录")
+                credential = None
+            else:
+                logger.info("缓存凭据有效")
+                if credential.check_refresh():
+                    logger.info("凭据即将过期, 正在尝试刷新...")
+                    try:
+                        await credential.refresh()
+                        logger.info("凭据刷新成功")
+                        self._log_credential(credential)
+                    except Exception:
+                        logger.exception("凭据刷新失败, 将尝试扫码登录")
+                        credential = None
+
+        if credential:
+            logger.info("使用缓存凭据登录成功")
+            return credential
+
+        logger.info("无有效缓存凭据, 将启动扫码登录...")
+        new_credential = await self._qr_login()
+        if new_credential:
+            self._log_credential(new_credential)
+        return new_credential
+
+    async def _qr_login(self) -> Optional[Credential]:
+        """通过二维码登录B站"""
+        try:
+            login_qrcode = QrCodeLogin()
+            await login_qrcode.generate_qrcode()
+            logger.info(f"请在3分钟内扫描二维码登录:\n{login_qrcode.get_qrcode_terminal()}")
+
+
+            login_start_time = time.time()
+            last_state = None
+            logger.info("等待扫描二维码...")
+            while time.time() - login_start_time < 180:  # 3分钟超时
+                state = await login_qrcode.check_state()
+                if state == QrCodeLoginEvents.DONE:
+                    logger.info("扫码登录成功！")
+                    return login_qrcode.get_credential()
+
+                if state != last_state:
+                    if state == QrCodeLoginEvents.TIMEOUT:
+                        logger.warning("二维码已过期")
+                        break  # exit loop
+                    if state == QrCodeLoginEvents.CONF:
+                        logger.info("二维码已扫描, 请在手机上确认登录...")
+
+                    last_state = state
+
+                await asyncio.sleep(2)
+
+            logger.error("二维码登录超时")
+            
+        except Exception:
+            logger.exception("二维码登录时发生错误")
+            return None
+        return None
+    
     def _register_events(self):
         """注册直播事件处理函数"""
         if not self.live_danmaku:
@@ -251,3 +336,5 @@ class BilibiliLiveClient:
                 await self._task
         self._task = None
         logger.info("B站直播客户端已停止")
+
+bilibili_live_client = BilibiliLiveClient()

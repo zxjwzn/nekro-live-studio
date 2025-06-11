@@ -4,10 +4,10 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Generic, Optional, Type, TypeVar
 
-from clients.vts_client.exceptions import (
+from clients.vtuber_studio.exceptions import (
     VTSConnectionError,
 )
-from clients.vts_client.plugin import plugin
+from clients.vtuber_studio.plugin import plugin
 from configs.base import ConfigBase
 from utils.logger import logger
 
