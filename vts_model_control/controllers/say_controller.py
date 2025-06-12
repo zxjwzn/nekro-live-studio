@@ -1,6 +1,6 @@
 import asyncio
-import random
-from typing import Type
+import audioop
+from typing import Optional, Type
 
 from configs.base import ConfigBase
 from pydantic import Field
@@ -12,21 +12,19 @@ from .base_controller import BaseController
 
 
 class SayConfig(ConfigBase):
-    """嘴部表情配置"""
+    """语音驱动嘴形配置"""
 
-    ENABLED: bool = Field(default=True, description="是否启用嘴部表情变化")
-    SMILE_MIN: float = Field(default=0.3, description="嘴角微笑最小值（不高兴）")
-    SMILE_MAX: float = Field(default=0.7, description="嘴角微笑最大值（高兴）")
-    OPEN_MIN: float = Field(default=0.3, description="嘴巴开合最小值（闭合）")
-    OPEN_MAX: float = Field(default=0.7, description="嘴巴开合最大值（张开，可调小避免过度张嘴）")
-    SMILE_PARAMETER: str = Field(default="MouthSmile", description="嘴角微笑控制的参数名")
-    OPEN_PARAMETER: str = Field(default="MouthOpen", description="嘴巴开合控制的参数名")
-    SMOOTHING_UP: float = Field(default=0.05, description="口型张开平滑时间（秒）")
-    SMOOTHING_DOWN: float = Field(default=0.05, description="口型闭合平滑时间（秒）")
+    ENABLED: bool = Field(default=True, description="是否启用语音驱动嘴形")
+    MOUTH_OPEN_PARAMETER: str = Field(default="MouthOpen", description="嘴巴开合控制的参数名")
+    LOUDNESS_THRESHOLD: float = Field(default=0.01, description="响度阈值，低于此值时嘴巴趋于闭合")
+    LOUDNESS_SENSITIVITY: float = Field(default=2.0, description="响度敏感度，响度到嘴部开合的映射乘数")
+    SMOOTHING_FACTOR: float = Field(default=0.3, description="嘴部开合平滑系数 (0-1, 越小越平滑)")
 
 
 class SayController(BaseController[SayConfig]):
-    """模拟说话时快速开合嘴部的控制器。"""
+    """
+    通过分析 TTS 音频流的响度来控制嘴部开合。
+    """
 
     @classmethod
     def get_config_class(cls) -> Type[SayConfig]:
@@ -39,35 +37,65 @@ class SayController(BaseController[SayConfig]):
     def __init__(self):
         super().__init__()
         self.is_idle_animation = False
+        self.audio_queue: Optional[asyncio.Queue[Optional[bytes]]] = None
+        self._current_mouth_open = 0.0
+
+    def prepare_to_speak(self, audio_queue: asyncio.Queue[Optional[bytes]]):
+        """在说话前准备，设置音频队列。"""
+        self.audio_queue = audio_queue
+        self._current_mouth_open = 0.0
+
+    async def _run(self):
+        """
+        控制器主循环，处理音频流并控制嘴部。
+        此方法由 controller_manager 启动。
+        """
+        if not self.audio_queue:
+            logger.error("SayController: audio_queue 未在运行前设置。")
+            return
+
+        try:
+            while self.is_running:
+                # 从队列中获取原始 PCM 音频块
+                pcm_chunk = await self.audio_queue.get()
+                if pcm_chunk is None:  # 接收到结束信号
+                    break
+
+                rms = audioop.rms(pcm_chunk, 2)  # 2 表示样本宽度为 2 字节 (16-bit)
+                normalized_rms = rms / 32767
+                target_mouth_open = 0.0
+                if normalized_rms > self.config.LOUDNESS_THRESHOLD:
+                    target_mouth_open = min(
+                        1.0,
+                        (normalized_rms - self.config.LOUDNESS_THRESHOLD)
+                        * self.config.LOUDNESS_SENSITIVITY,
+                    )
+
+                self._current_mouth_open = (
+                    self.config.SMOOTHING_FACTOR * target_mouth_open
+                    + (1 - self.config.SMOOTHING_FACTOR) * self._current_mouth_open
+                )
+
+                await tweener.tween(
+                    param=self.config.MOUTH_OPEN_PARAMETER,
+                    end=self._current_mouth_open,
+                    duration=0,
+                    easing_func=Easing.linear,
+                    priority=2,
+                )
+        except Exception as e:
+            logger.error(f"SayController 运行循环中发生错误: {e}", exc_info=True)
+        finally:
+            logger.info("SayController 运行结束，关闭嘴部。")
+            await tweener.tween(
+                param=self.config.MOUTH_OPEN_PARAMETER,
+                end=0.0,
+                duration=0.2,
+                easing_func=Easing.linear,
+                priority=2,
+            )
+            self._current_mouth_open = 0.0
+            self.audio_queue = None
 
     async def run_cycle(self):
-        """执行一次开合嘴的动画，并随机改变微笑程度。"""
-        # 随机选择一个张嘴程度
-        target_open = random.uniform(self.config.OPEN_MIN, self.config.OPEN_MAX)
-        # 随机选择一个微笑程度
-        target_smile = random.uniform(self.config.SMILE_MIN, self.config.SMILE_MAX)
-
-        # 张嘴并同时调整微笑
-        await asyncio.gather(
-            tweener.tween(
-                param=self.config.OPEN_PARAMETER,
-                end=target_open,
-                duration=self.config.SMOOTHING_UP,
-                easing_func=Easing.out_sine,
-            ),
-            tweener.tween(
-                param=self.config.SMILE_PARAMETER,
-                end=target_smile,
-                duration=self.config.SMOOTHING_UP,
-                easing_func=Easing.out_sine,
-            ),
-        )
-
-        # 闭嘴。微笑状态会由 MouthExpressionController 或下一次 run_cycle 改变
-        await tweener.tween(
-            param=self.config.OPEN_PARAMETER,
-            end=self.config.OPEN_MIN,
-            duration=self.config.SMOOTHING_DOWN,
-            easing_func=Easing.in_sine,
-        )
-        
+        pass

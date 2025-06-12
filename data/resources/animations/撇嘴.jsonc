@@ -17,8 +17,6 @@
         // 2. 定义内部变量，实现比例和约束
         "variables": {
             "mouth_x_target": 1, // 撇嘴目标值
-            "mouth_smile_target": 0, // 微笑目标值
-            "mouth_open_target": 0, // 张嘴目标值
         },
 
         // 3. 在动作中使用计算好的变量
@@ -26,13 +24,6 @@
             {
                 "parameter": "MouthX",
                 "to": {"expr": "mouth_x_target"}, // 撇嘴
-                "duration": 0.3,
-                "easing": "in_out_sine",
-                "delay": 0.0
-            },
-            {
-                "parameter": "MouthOpen",
-                "to": {"expr": "mouth_open_target"},
                 "duration": 0.3,
                 "easing": "in_out_sine",
                 "delay": 0.0

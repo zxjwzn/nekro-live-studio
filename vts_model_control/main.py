@@ -11,8 +11,8 @@ from configs.config import config, reload_config, save_config
 from controllers.blink_controller import BlinkController
 from controllers.body_swing_controller import BodySwingController
 from controllers.breathing_controller import BreathingController
+from controllers.lip_sync_controller import LipSyncController
 from controllers.mouth_expression_controller import MouthExpressionController
-from controllers.say_controller import SayController
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
 from schemas.actions import (
@@ -57,8 +57,7 @@ async def lifespan(app: FastAPI):
     controller_manager.register_idle_controller(BreathingController())
     controller_manager.register_idle_controller(BodySwingController())
     controller_manager.register_idle_controller(MouthExpressionController())
-    controller_manager.register_idle_controller(SayController())
-
+    controller_manager.register_idle_controller(LipSyncController())
     asyncio.create_task(controller_manager.start_all())
     asyncio.create_task(bilibili_live_client.start())
 

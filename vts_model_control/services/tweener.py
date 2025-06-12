@@ -1,7 +1,7 @@
 import asyncio
 import contextlib
 import random
-from typing import Dict, Optional, Set, Tuple
+from typing import Callable, Dict, Optional, Set, Tuple
 
 from clients.vtuber_studio.plugin import plugin
 from utils.easing import Easing
@@ -64,7 +64,7 @@ class Tweener:
         param: str,
         end: float,
         duration: float,
-        easing_func,
+        easing_func: Callable[[float], float],
         start: Optional[float] = None,
         mode: str = "set",
         fps: int = 60,

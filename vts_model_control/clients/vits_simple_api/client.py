@@ -4,7 +4,7 @@ from typing import AsyncIterator, Optional
 
 import httpx
 from configs.config import config
-from services.audio_player import audio_player
+from services.ffmpeg import play_audio_stream_with_ffplay
 from utils.logger import logger
 
 
@@ -23,26 +23,24 @@ class VITSSimpleAPIClient:
         started_event: Optional[asyncio.Event] = None,
         finished_event: Optional[asyncio.Event] = None,
         volume: Optional[float] = None,
-        analysis_queue: Optional[asyncio.Queue[Optional[bytes]]] = None,
     ) -> bool:
         """
         从文本生成语音并流式播放
         """
-        if not self.config.ENABLED:
-            logger.debug("VITS Simple API 已禁用.")
-            return False
-
         try:
-            stream_generator = self._generate_speech_stream(text, lang, speaker_id)
-            return await audio_player.play_from_stream(
-                stream_generator,
+            audio_stream = self._generate_speech_stream(
+                text=text, lang=lang, speaker_id=speaker_id,
+            )
+            return await play_audio_stream_with_ffplay(
+                audio_stream=audio_stream,
                 started_event=started_event,
                 finished_event=finished_event,
                 volume=volume,
-                analysis_queue=analysis_queue,
             )
         except Exception as e:
-            logger.error(f"语音生成或流式播放失败: {e}")
+            logger.error(f"播放语音时发生错误: {e}")
+            if finished_event:
+                finished_event.set()
             return False
 
     async def _generate_speech_stream(

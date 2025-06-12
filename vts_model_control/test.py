@@ -22,7 +22,7 @@ async def test_animation_control():
         expression = {
             "type": "play_preformed_animation",
             "data": {
-                "name": "摇头",
+                "name": "眨巴眼睛",
                 "params": {
                     "duration": 1.0,
                 },

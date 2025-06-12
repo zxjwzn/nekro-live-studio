@@ -13,6 +13,13 @@ class AnimationManager:
     def __init__(self):
         self.controllers: List[BaseController] = []
 
+    def get_controller(self, controller_name: str) -> BaseController | None:
+        """根据名称获取一个控制器实例"""
+        for controller in self.controllers:
+            if controller.__class__.__name__ == controller_name:
+                return controller
+        return None
+
     def register_idle_controller(self, controller: BaseController):
         """注册一个空闲动画控制器。"""
         if controller in self.controllers or controller.config.ENABLED is False:

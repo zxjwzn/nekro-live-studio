@@ -113,6 +113,7 @@ class ActionScheduler:
 
                 if say_action.data.tts_text:
                     async with self.tts_lock:
+
                         local_start_event = asyncio.Event()
                         finished_event = asyncio.Event()
 
@@ -150,14 +151,12 @@ class ActionScheduler:
                                 tts_start_event.set()
 
                         logger.info("音频已开始播放, 开始显示字幕...")
-                        await controller_manager.start_animation("SayController")
                         await subtitle_broadcaster.broadcast(say_action.model_dump_json())
 
                         # 等待音频播放完成
                         await finished_event.wait()
                         logger.info("音频播放完毕, 发送完成消息.")
                         await subtitle_broadcaster.broadcast('{"type": "finished"}')
-                        await controller_manager.stop_animation_without_wait("SayController")
                         await speak_task  # 确保后台任务最终完成
                 else:
                     # 如果没有 tts_text，则只广播字幕
