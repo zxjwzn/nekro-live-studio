@@ -3,9 +3,10 @@ import io
 from typing import AsyncIterator, Optional
 
 import httpx
-from configs.config import config
-from services.audio_player import audio_player
+from services.ffmpeg import play_audio_stream_with_ffplay
 from utils.logger import logger
+
+from configs.config import config
 
 
 class VITSSimpleAPIClient:
@@ -23,7 +24,6 @@ class VITSSimpleAPIClient:
         started_event: Optional[asyncio.Event] = None,
         finished_event: Optional[asyncio.Event] = None,
         volume: Optional[float] = None,
-        analysis_queue: Optional[asyncio.Queue[Optional[bytes]]] = None,
     ) -> bool:
         """
         从文本生成语音并流式播放
@@ -34,12 +34,11 @@ class VITSSimpleAPIClient:
 
         try:
             stream_generator = self._generate_speech_stream(text, lang, speaker_id)
-            return await audio_player.play_from_stream(
+            return await play_audio_stream_with_ffplay(
                 stream_generator,
                 started_event=started_event,
                 finished_event=finished_event,
                 volume=volume,
-                analysis_queue=analysis_queue,
             )
         except Exception as e:
             logger.error(f"语音生成或流式播放失败: {e}")
@@ -65,7 +64,6 @@ class VITSSimpleAPIClient:
         }
 
         request_url = f"{self.base_url}voice/{model_name}"
-
         try:
             async with (
                 httpx.AsyncClient() as client,

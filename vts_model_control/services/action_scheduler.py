@@ -4,7 +4,6 @@ from typing import Deque, Optional, cast
 
 from clients.vits_simple_api.client import vits_simple_api_client
 from clients.vtuber_studio.plugin import plugin
-from configs.config import config
 from schemas.actions import Action, Animation, Expression, Say, SoundPlay, SoundPlayData
 from services.audio_player import audio_player
 from services.controller_manager import controller_manager
@@ -12,6 +11,8 @@ from services.subtitle_broadcaster import subtitle_broadcaster
 from services.tweener import tweener
 from utils.easing import Easing
 from utils.logger import logger
+
+from configs.config import config
 
 
 class ActionScheduler:
@@ -113,7 +114,7 @@ class ActionScheduler:
 
                 if say_action.data.tts_text:
                     async with self.tts_lock:
-                        local_start_event = asyncio.Event()
+                        start_event = asyncio.Event()
                         finished_event = asyncio.Event()
 
                         # 第一个获取锁的 say 动作将负责触发全局事件
@@ -123,7 +124,7 @@ class ActionScheduler:
                         speak_task = asyncio.create_task(
                             vits_simple_api_client.speak(
                                 text=say_action.data.tts_text,
-                                started_event=local_start_event,
+                                started_event=start_event,
                                 finished_event=finished_event,
                                 volume=say_action.data.volume,
                             ),
@@ -131,14 +132,14 @@ class ActionScheduler:
 
                         # 等待这个动作自己的音频开始, 或是在开始前就失败
                         done, pending = await asyncio.wait(
-                            [local_start_event.wait(), finished_event.wait()],
+                            [start_event.wait(), finished_event.wait()],
                             return_when=asyncio.FIRST_COMPLETED,
                         )
                         for task in pending:
                             task.cancel()
 
                         # 如果任务在开始前就失败了, 中止动作
-                        if finished_event.is_set() and not local_start_event.is_set():
+                        if finished_event.is_set() and not start_event.is_set():
                             logger.error("TTS 播放任务在开始前就已失败, 中止 'say' 动作.")
                             await speak_task  # 等待任务完成以获取可能的异常信息
                             return
@@ -150,14 +151,12 @@ class ActionScheduler:
                                 tts_start_event.set()
 
                         logger.info("音频已开始播放, 开始显示字幕...")
-                        await controller_manager.start_animation("SayController")
                         await subtitle_broadcaster.broadcast(say_action.model_dump_json())
 
                         # 等待音频播放完成
                         await finished_event.wait()
                         logger.info("音频播放完毕, 发送完成消息.")
                         await subtitle_broadcaster.broadcast('{"type": "finished"}')
-                        await controller_manager.stop_animation_without_wait("SayController")
                         await speak_task  # 确保后台任务最终完成
                 else:
                     # 如果没有 tts_text，则只广播字幕

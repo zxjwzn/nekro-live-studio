@@ -7,12 +7,10 @@ import uvicorn
 from clients.live.bilibili_live import bilibili_live_client
 from clients.vits_simple_api.client import vits_simple_api_client
 from clients.vtuber_studio.plugin import plugin
-from configs.config import config, reload_config, save_config
 from controllers.blink_controller import BlinkController
 from controllers.body_swing_controller import BodySwingController
 from controllers.breathing_controller import BreathingController
 from controllers.mouth_expression_controller import MouthExpressionController
-from controllers.say_controller import SayController
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
 from schemas.actions import (
@@ -33,6 +31,8 @@ from services.tweener import tweener
 from services.websocket_manager import manager
 from starlette.staticfiles import StaticFiles
 from utils.logger import logger
+
+from configs.config import config, reload_config, save_config
 
 
 @asynccontextmanager
@@ -57,7 +57,6 @@ async def lifespan(app: FastAPI):
     controller_manager.register_idle_controller(BreathingController())
     controller_manager.register_idle_controller(BodySwingController())
     controller_manager.register_idle_controller(MouthExpressionController())
-    controller_manager.register_idle_controller(SayController())
 
     asyncio.create_task(controller_manager.start_all())
     asyncio.create_task(bilibili_live_client.start())

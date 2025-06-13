@@ -2,11 +2,12 @@ import asyncio
 import random
 from typing import Type
 
-from configs.base import ConfigBase
 from pydantic import Field
 from services.tweener import tweener
 from utils.easing import Easing
 from utils.logger import logger
+
+from configs.base import ConfigBase
 
 from .base_controller import BaseController
 
@@ -50,7 +51,7 @@ class MouthExpressionController(BaseController[MouthExpressionConfig]):
             f"嘴部表情: "
             f"Smile: {target_smile:.2f}, "
             f"Open: {target_open:.2f}, "
-            f"时长: {duration:.2f}s, 缓动: {easing_func.__name__}"
+            f"时长: {duration:.2f}s, 缓动: {easing_func.__name__}",
         )
         await asyncio.gather(
             tweener.tween(
