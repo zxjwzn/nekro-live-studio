@@ -69,9 +69,6 @@ class ActionScheduler:
         say_action_with_tts_exists = any(
             action.type == "say" and cast(Say, action).data.tts_text for action in actions_to_run
         )
-        # 如果没有TTS任务，立即暂停空闲动画
-        if not say_action_with_tts_exists:
-            await controller_manager.pause_idle()
 
         tts_start_event = asyncio.Event() if say_action_with_tts_exists else None
 
@@ -89,7 +86,6 @@ class ActionScheduler:
                 await asyncio.gather(*tasks)
 
         logger.info(f"动作队列执行完成, 共执行 {total_runs} 次")
-        await controller_manager.start_all_idle()
 
     async def _execute_action(self, action: Action, tts_start_event: Optional[asyncio.Event] = None):
         """执行单个动作，延迟执行"""
@@ -145,9 +141,7 @@ class ActionScheduler:
                             return
 
                         # 音频已开始, 如果是第一个, 则触发全局事件并暂停空闲动画
-                        if is_first_tts_runner:
-                            await controller_manager.pause_idle()
-                            if tts_start_event:
+                        if is_first_tts_runner and tts_start_event:
                                 tts_start_event.set()
 
                         logger.info("音频已开始播放, 开始显示字幕...")
