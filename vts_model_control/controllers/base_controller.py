@@ -71,12 +71,12 @@ class BaseController(Generic[TConfig], ABC):
         """检查是否为空闲动画"""
         return self.get_animation_type() == AnimationType.IDLE
 
-    async def start(self):
+    async def start(self,*args, **kwargs):
         """启动动画"""
         if self.is_running:
             return
         self._stop_event.clear()
-        self._task = asyncio.create_task(self._run())
+        self._task = asyncio.create_task(self._run(*args, **kwargs))
 
     async def stop(self):
         """停止动画"""
@@ -95,13 +95,13 @@ class BaseController(Generic[TConfig], ABC):
         if self._task:
             self._task.cancel()
 
-    async def _run(self):
+    async def _run(self,*args, **kwargs):
         """主运行逻辑，根据动画类型选择执行方式"""
         try:
             if self.get_animation_type() == AnimationType.IDLE:
                 await self._run_loop()
             else:
-                await self.execute()
+                await self.execute(*args, **kwargs)
         except asyncio.CancelledError:
             pass
         except VTSConnectionError:
@@ -128,7 +128,7 @@ class BaseController(Generic[TConfig], ABC):
         """子类实现一次动画循环逻辑（仅用于空闲动画）"""
         raise NotImplementedError("空闲动画必须实现 run_cycle 方法")
 
-    async def execute(self):
+    async def execute(self,*args, **kwargs):
         """子类实现一次性动画执行逻辑（用于非循环动画）"""
         raise NotImplementedError("非循环动画必须实现 execute 方法")
 
@@ -144,7 +144,7 @@ class IdleController(BaseController[TConfig], ABC):
     async def run_cycle(self):
         """子类实现一次动画循环逻辑"""
 
-    async def execute(self):
+    async def execute(self,*args, **kwargs):
         """空闲动画不需要实现此方法"""
 
 
@@ -159,5 +159,5 @@ class OneShotController(BaseController[TConfig], ABC):
         """一次性动画不需要实现此方法"""
 
     @abstractmethod
-    async def execute(self):
+    async def execute(self,*args, **kwargs):
         """子类实现一次性动画执行逻辑"""

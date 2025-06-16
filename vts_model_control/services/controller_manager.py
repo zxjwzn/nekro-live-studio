@@ -81,7 +81,7 @@ class AnimationManager:
         controller = self.get_controller_by_name(animation_name)
         if controller:
             if not controller.is_running:
-                await controller.start(*args, **kwargs)
+                await controller.execute(*args, **kwargs)
             else:
                 logger.warning(f"一次性动画 {animation_name} 正在运行中，跳过执行")
         else:
