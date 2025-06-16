@@ -58,9 +58,9 @@ class VITSSimpleAPIConfig(ConfigBase):
     ENABLED: bool = Field(default=True, description="是否启用文本转语音合成")
     HOST_AND_PORT: str = Field(default="http://127.0.0.1:23456/", description="文本转语音合成API地址和端口")
     VOLUME: float = Field(default=0.7, description="播放的语音音量")
-    VOICE_LANG: str = Field(default="ja", description="语音语言")
+    VOICE_LANG: str = Field(default="auto", description="语音语言")
     SPEAKER_ID: str = Field(default="0", description= "说话人id")
-    NAME: Literal["VITS", "Bert-VITS2"] = Field(default="Bert-VITS2", description="使用的文本转语音服务")
+    SERVICE_NAME: Literal["VITS", "Bert-VITS2"] = Field(default="Bert-VITS2", description="使用的文本转语音服务")
 
 class BilibiliConfigs(ConfigBase):
     """Bilibili直播配置"""

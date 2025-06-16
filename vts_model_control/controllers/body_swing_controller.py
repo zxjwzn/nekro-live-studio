@@ -3,12 +3,13 @@ import random
 from pathlib import Path
 from typing import Type
 
-from configs.base import ConfigBase
 from pydantic import Field
 from services.tweener import tweener
 from utils.logger import logger
 
-from .base_controller import CONFIG_DIR, BaseController
+from configs.base import ConfigBase
+
+from .base_controller import CONFIG_DIR, IdleController
 
 
 class BodySwingConfig(ConfigBase):
@@ -42,7 +43,7 @@ class EyeFollowConfig(ConfigBase):
     RIGHT_Y_PARAMETER: str = Field(default="EyeRightY", description="右眼垂直移动参数")
 
 
-class BodySwingController(BaseController[BodySwingConfig]):
+class BodySwingController(IdleController[BodySwingConfig]):
     """身体摇摆控制器, 通过缓动 FaceAngleX/Z 实现更自然的待机动作。"""
 
     @classmethod
@@ -55,7 +56,6 @@ class BodySwingController(BaseController[BodySwingConfig]):
 
     def __init__(self):
         super().__init__()
-        self.is_idle_animation = True
         self.eye_config_path = CONFIG_DIR / "eye_follow.yaml"
         self.eye_config = EyeFollowConfig.load_config(self.eye_config_path)
         self.eye_config.dump_config(self.eye_config_path)

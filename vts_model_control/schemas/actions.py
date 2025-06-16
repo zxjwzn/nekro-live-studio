@@ -1,7 +1,8 @@
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, Literal, Optional, Union
+
+from pydantic import BaseModel, Field
 
 from configs.config import config
-from pydantic import BaseModel, Field
 
 
 class SoundPlayData(BaseModel):

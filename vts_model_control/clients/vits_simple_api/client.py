@@ -1,6 +1,6 @@
 import asyncio
 import io
-from typing import AsyncIterator, Optional
+from typing import AsyncIterator, Literal, Optional
 
 import httpx
 from services.ffmpeg import play_audio_stream_with_ffplay
@@ -19,7 +19,7 @@ class VITSSimpleAPIClient:
     async def speak(
         self,
         text: str,
-        lang: str | None = None,
+        lang: str = "auto",
         speaker_id: str | None = None,
         started_event: Optional[asyncio.Event] = None,
         finished_event: Optional[asyncio.Event] = None,
@@ -47,18 +47,17 @@ class VITSSimpleAPIClient:
     async def _generate_speech_stream(
         self,
         text: str,
-        lang: str | None = None,
+        lang: str = "auto",
         speaker_id: str | None = None,
     ) -> AsyncIterator[bytes]:
         """
         调用 VITS Simple API 并以异步生成器形式返回音频流
         """
-        model_name = self.config.NAME.lower()
+        model_name = self.config.SERVICE_NAME.lower()
 
         params = {
             "text": text,
             "id": speaker_id or self.config.SPEAKER_ID,
-            "format": "wav",
             "lang": lang or self.config.VOICE_LANG,
             "streaming": "true",
         }

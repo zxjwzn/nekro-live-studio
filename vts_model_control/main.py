@@ -53,12 +53,12 @@ async def lifespan(app: FastAPI):
     # 注册并启动空闲动画
     logger.info("正在注册动画控制器...")
 
-    controller_manager.register_idle_controller(BlinkController())
-    controller_manager.register_idle_controller(BreathingController())
-    controller_manager.register_idle_controller(BodySwingController())
-    controller_manager.register_idle_controller(MouthExpressionController())
+    controller_manager.register_controller(BlinkController())
+    controller_manager.register_controller(BreathingController())
+    controller_manager.register_controller(BodySwingController())
+    controller_manager.register_controller(MouthExpressionController())
 
-    asyncio.create_task(controller_manager.start_all())
+    asyncio.create_task(controller_manager.start_all_idle())
     asyncio.create_task(bilibili_live_client.start())
 
     yield
@@ -66,7 +66,7 @@ async def lifespan(app: FastAPI):
     # Shutdown
     logger.info("应用关闭中...")
     save_config()
-    await controller_manager.stop_all()
+    await controller_manager.stop_all_idle()
     tweener.release_all()
     await tweener.stop()
     await plugin.disconnect()

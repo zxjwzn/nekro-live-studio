@@ -15,7 +15,7 @@ async def play_audio_stream_with_ffplay(
     volume: float | None = None,
 ) -> bool:
     """
-    使用 ffplay 播放音频流，同时进行响度分析
+    使用 ffplay 播放音频流
     """
     
     try:

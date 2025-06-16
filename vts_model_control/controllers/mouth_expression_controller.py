@@ -9,7 +9,7 @@ from utils.logger import logger
 
 from configs.base import ConfigBase
 
-from .base_controller import BaseController
+from .base_controller import IdleController
 
 
 class MouthExpressionConfig(ConfigBase):
@@ -26,7 +26,7 @@ class MouthExpressionConfig(ConfigBase):
     OPEN_PARAMETER: str = Field(default="MouthOpen", description="嘴巴开合控制的参数名")
 
 
-class MouthExpressionController(BaseController[MouthExpressionConfig]):
+class MouthExpressionController(IdleController[MouthExpressionConfig]):
     """嘴部表情控制器，随机改变微笑和嘴巴张开程度，增加生动性。"""
 
     @classmethod
@@ -39,7 +39,6 @@ class MouthExpressionController(BaseController[MouthExpressionConfig]):
 
     def __init__(self):
         super().__init__()
-        self.is_idle_animation = True
 
     async def run_cycle(self):
         """执行一次嘴部表情变化周期。"""

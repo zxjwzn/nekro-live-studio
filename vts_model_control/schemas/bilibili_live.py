@@ -1,7 +1,8 @@
 from typing import List
 
-from configs.config import config
 from pydantic import BaseModel, Field
+
+from configs.config import config
 
 
 class Danmaku(BaseModel):

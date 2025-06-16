@@ -2,13 +2,14 @@ import asyncio
 import random
 from typing import Type
 
-from configs.base import ConfigBase
 from pydantic import Field
 from services.tweener import tweener
 from utils.easing import Easing
 from utils.logger import logger
 
-from .base_controller import BaseController
+from configs.base import ConfigBase
+
+from .base_controller import IdleController
 
 
 class BreathingConfig(ConfigBase):
@@ -22,7 +23,7 @@ class BreathingConfig(ConfigBase):
     PARAMETER: str = Field(default="FaceAngleY", description="呼吸控制的参数名")
 
 
-class BreathingController(BaseController[BreathingConfig]):
+class BreathingController(IdleController[BreathingConfig]):
     """呼吸控制器，通过缓动 FaceAngleY 参数实现模拟呼吸的效果。"""
 
     @classmethod
@@ -35,7 +36,6 @@ class BreathingController(BaseController[BreathingConfig]):
 
     def __init__(self):
         super().__init__()
-        self.is_idle_animation = True
 
     async def run_cycle(self):
         """执行一次呼吸周期：吸气 -> 呼气"""

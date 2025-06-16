@@ -2,13 +2,14 @@ import asyncio
 import random
 from typing import Type
 
-from configs.base import ConfigBase
 from pydantic import Field
 from services.tweener import tweener
 from utils.easing import Easing
 from utils.logger import logger
 
-from .base_controller import BaseController
+from configs.base import ConfigBase
+
+from .base_controller import IdleController
 
 
 class BlinkConfig(ConfigBase):
@@ -32,7 +33,7 @@ class BlinkConfig(ConfigBase):
     MAX_VALUE: float = Field(default=1, description="眨眼最大值（睁眼）")
 
 
-class BlinkController(BaseController[BlinkConfig]):
+class BlinkController(IdleController[BlinkConfig]):
     """眨眼控制器，使用 Tweener 实现闭眼-睁眼过渡循环"""
 
     @classmethod
@@ -45,7 +46,6 @@ class BlinkController(BaseController[BlinkConfig]):
 
     def __init__(self):
         super().__init__()
-        self.is_idle_animation = True
 
     async def run_cycle(self):
         """执行一次眨眼周期: 在 tween/closed_hold/open 阶段完成眨眼，等待阶段可被取消"""
