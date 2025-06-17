@@ -101,7 +101,7 @@ class Tweener:
         if duration <= 0 or start == end:
             async with self._lock:
                 if param in self._active_tweens:
-                    existing_task, existing_priority = self._active_tweens[param]
+                    _existing_task, existing_priority = self._active_tweens[param]
                     if priority <= existing_priority:
                         logger.debug(
                             f"参数 {param} 的即时设置被拒绝，因为已存在一个优先级为 "
@@ -109,9 +109,8 @@ class Tweener:
                         )
                         return
                     logger.debug(
-                        f"参数 {param} 的即时设置正在取消一个优先级为 {existing_priority} 的缓动 (新请求优先级: {priority}).",
+                        f"参数 {param} 的即时设置正在中断一个优先级为 {existing_priority} 的缓动 (新请求优先级: {priority}).",
                     )
-                    existing_task.cancel()
                     del self._active_tweens[param]
 
                 self.controlled_params[param] = end
@@ -125,7 +124,7 @@ class Tweener:
 
         async with self._lock:
             if param in self._active_tweens:
-                existing_task, existing_priority = self._active_tweens[param]
+                _existing_task, existing_priority = self._active_tweens[param]
                 if priority <= existing_priority:
                     logger.debug(
                         f"参数 {param} 的缓动被拒绝，因为已存在一个优先级为 "
@@ -133,9 +132,8 @@ class Tweener:
                     )
                     return
                 logger.debug(
-                    f"正在为参数 {param} 取消已存在的缓动 (优先级 {existing_priority})，以执行新的缓动 (优先级 {priority}).",
+                    f"参数 {param} 的缓动中断了另一个优先级为 {existing_priority} 的任务，并以新的优先级 {priority} 接管.",
                 )
-                existing_task.cancel()
 
             self._active_tweens[param] = (current_task, priority)
 
@@ -143,9 +141,16 @@ class Tweener:
             for step in range(steps):
                 t = (step + 1) / steps
                 value = start + (end - start) * easing_func(t)
+
+                should_set_value = False
                 async with self._lock:
-                    self.controlled_params[param] = value
-                await self._plugin.set_parameter_value(param, value, mode=mode)
+                    active_task_tuple = self._active_tweens.get(param)
+                    if active_task_tuple and active_task_tuple[0] is current_task:
+                        self.controlled_params[param] = value
+                        should_set_value = True
+
+                if should_set_value:
+                    await self._plugin.set_parameter_value(param, value, mode=mode)
 
                 now = loop.time()
                 next_time = start_time + (step + 1) * interval

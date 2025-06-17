@@ -41,7 +41,7 @@ class MouthSyncController(OneShotController[MouthExpressionConfig]):
         try:
             while True:
                 lufs = await loudness_queue.get()
-                logger.info(f"响度: {lufs}")
+                logger.debug(f"响度: {lufs}")
                 if lufs is None:  # End of stream
                     break
 
