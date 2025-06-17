@@ -66,9 +66,7 @@ class ActionScheduler:
         self.action_queue.clear()
 
         # 检查队列中是否存在带TTS的SayAction，以同步所有动作
-        say_action_with_tts_exists = any(
-            action.type == "say" and cast(Say, action).data.tts_text for action in actions_to_run
-        )
+        say_action_with_tts_exists = any(action.type == "say" and cast(Say, action).data.tts_text for action in actions_to_run)
 
         tts_start_event = asyncio.Event() if say_action_with_tts_exists else None
 
@@ -96,7 +94,7 @@ class ActionScheduler:
         if tts_start_event and not is_say_with_tts:
             logger.info(f"动作 {action.type} 等待 TTS 开始...")
             await tts_start_event.wait()
-            #logger.info(f"TTS 已开始, 动作 {action.type} 继续执行.")
+            # logger.info(f"TTS 已开始, 动作 {action.type} 继续执行.")
 
         delay = getattr(action.data, "delay", 0.0)
         if delay > 0:
@@ -110,6 +108,16 @@ class ActionScheduler:
 
                 if say_action.data.tts_text:
                     async with self.tts_lock:
+                        mouth_sync_controller = controller_manager.get_controller_by_name(
+                            "MouthSyncController",
+                        )
+                        loudness_queue = asyncio.Queue()
+                        mouth_sync_task = None
+                        if mouth_sync_controller:
+                            mouth_sync_task = asyncio.create_task(
+                                mouth_sync_controller.execute(loudness_queue),
+                            )
+
                         start_event = asyncio.Event()
                         finished_event = asyncio.Event()
 
@@ -123,6 +131,7 @@ class ActionScheduler:
                                 started_event=start_event,
                                 finished_event=finished_event,
                                 volume=say_action.data.volume,
+                                loudness_queue=loudness_queue,
                             ),
                         )
 
@@ -142,7 +151,7 @@ class ActionScheduler:
 
                         # 音频已开始, 如果是第一个, 则触发全局事件并暂停空闲动画
                         if is_first_tts_runner and tts_start_event:
-                                tts_start_event.set()
+                            tts_start_event.set()
 
                         logger.info("音频已开始播放, 开始显示字幕...")
                         await subtitle_broadcaster.broadcast(say_action.model_dump_json())
@@ -152,6 +161,9 @@ class ActionScheduler:
                         logger.info("音频播放完毕, 发送完成消息.")
                         await subtitle_broadcaster.broadcast('{"type": "finished"}')
                         await speak_task  # 确保后台任务最终完成
+
+                        if mouth_sync_task:
+                            await mouth_sync_task
                 else:
                     # 如果没有 tts_text，则只广播字幕
                     await subtitle_broadcaster.broadcast(say_action.model_dump_json())

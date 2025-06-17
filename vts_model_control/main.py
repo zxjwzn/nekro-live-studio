@@ -11,6 +11,7 @@ from controllers.blink_controller import BlinkController
 from controllers.body_swing_controller import BodySwingController
 from controllers.breathing_controller import BreathingController
 from controllers.mouth_expression_controller import MouthExpressionController
+from controllers.mouth_sync import MouthSyncController
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
 from schemas.actions import (
@@ -50,14 +51,12 @@ async def lifespan(app: FastAPI):
     # 启动 Tweener
     tweener.start(plugin)
 
-    # 注册并启动空闲动画
-    logger.info("正在注册动画控制器...")
-
     controller_manager.register_controller(BlinkController())
-    controller_manager.register_controller(BreathingController())
     controller_manager.register_controller(BodySwingController())
+    controller_manager.register_controller(BreathingController())
     controller_manager.register_controller(MouthExpressionController())
-
+    controller_manager.register_controller(MouthSyncController())
+    
     asyncio.create_task(controller_manager.start_all_idle())
     asyncio.create_task(bilibili_live_client.start())
 

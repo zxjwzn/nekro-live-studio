@@ -19,19 +19,6 @@ async def test_animation_control():
         await websocket.send(json.dumps(say_command))
         response = await websocket.recv()
         print(response)
-        expression = {
-            "type": "play_preformed_animation",
-            "data": {
-                "name": "摇头",
-                "params": {
-                    "duration": 1.0,
-                },
-                "delay": 0,
-            },
-        }
-        await websocket.send(json.dumps(expression))
-        response = await websocket.recv()
-        print(response)
         # expression = {
         #     "type": "play_preformed_animation",
         #     "data": {

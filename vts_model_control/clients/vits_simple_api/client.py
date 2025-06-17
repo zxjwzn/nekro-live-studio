@@ -24,6 +24,7 @@ class VITSSimpleAPIClient:
         started_event: Optional[asyncio.Event] = None,
         finished_event: Optional[asyncio.Event] = None,
         volume: Optional[float] = None,
+        loudness_queue: Optional[asyncio.Queue[Optional[float]]] = None,
     ) -> bool:
         """
         从文本生成语音并流式播放
@@ -39,6 +40,7 @@ class VITSSimpleAPIClient:
                 started_event=started_event,
                 finished_event=finished_event,
                 volume=volume,
+                loudness_queue=loudness_queue,
             )
         except Exception as e:
             logger.error(f"语音生成或流式播放失败: {e}")

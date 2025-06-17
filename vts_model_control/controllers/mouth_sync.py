@@ -1,6 +1,6 @@
 import asyncio
 import random
-from typing import Type
+from typing import Optional, Type
 
 from pydantic import Field
 from services.tweener import tweener
@@ -16,15 +16,14 @@ class MouthExpressionConfig(ConfigBase):
     """嘴部表情配置"""
 
     ENABLED: bool = Field(default=True, description="是否启用嘴部表情变化")
-    OPEN_MIN: float = Field(default=0.1, description="嘴巴开合最小值（闭合）")
+    OPEN_MIN: float = Field(default=0.0, description="嘴巴开合最小值（闭合）")
     OPEN_MAX: float = Field(default=0.7, description="嘴巴开合最大值（张开，可调小避免过度张嘴）")
     OPEN_PARAMETER: str = Field(default="MouthOpen", description="嘴巴开合控制的参数名")
-    LOUDNESS_THRESHOLD_MIN: float = Field(default=-10, description="响度最小值(dB)")
-    LOUDNESS_THRESHOLD_MAX: float = Field(default=10, description="响度最大值(dB)")
+    LOUDNESS_THRESHOLD: float = Field(default=-30, description="响度阈值(LUFS)")
 
 
 class MouthSyncController(OneShotController[MouthExpressionConfig]):
-    """嘴部表情控制器，随机改变微笑和嘴巴张开程度，增加生动性。"""
+    """根据音频响度控制嘴部开合的控制器"""
 
     @classmethod
     def get_config_class(cls) -> Type[MouthExpressionConfig]:
@@ -34,34 +33,42 @@ class MouthSyncController(OneShotController[MouthExpressionConfig]):
     def get_config_filename(cls) -> str:
         return "mouth_sync.yaml"
 
-    def __init__(self):
-        super().__init__()
-
-    async def execute(self, loudness: float, duration: float):
+    async def execute(self, loudness_queue: asyncio.Queue[Optional[float]]):
         if not self.config.ENABLED:
             return
 
-        if loudness < self.config.LOUDNESS_THRESHOLD_MIN or loudness > self.config.LOUDNESS_THRESHOLD_MAX:
-            return
-        
-        # 将响度线性映射到嘴巴张开程度
-        # 计算响度在阈值范围内的相对位置（0-1）
-        loudness_ratio = (loudness - self.config.LOUDNESS_THRESHOLD_MIN) / (
-            self.config.LOUDNESS_THRESHOLD_MAX - self.config.LOUDNESS_THRESHOLD_MIN
-        )
-        
-        # 将比例映射到嘴巴张开范围
-        mouth_open = self.config.OPEN_MIN + loudness_ratio * (self.config.OPEN_MAX - self.config.OPEN_MIN)
-        
-        # 确保值在有效范围内
-        mouth_open = max(self.config.OPEN_MIN, min(self.config.OPEN_MAX, mouth_open))
+        logger.info("启动嘴型同步...")
+        try:
+            while True:
+                lufs = await loudness_queue.get()
+                logger.info(f"响度: {lufs}")
+                if lufs is None:  # End of stream
+                    break
 
-        asyncio.gather(
-            tweener.tween(
-                self.config.OPEN_PARAMETER,
-                mouth_open,
-                duration,
-                Easing.out_sine,
-                2,
-            ),
-        )
+                target_open = self.config.OPEN_MIN
+                if lufs >= self.config.LOUDNESS_THRESHOLD:
+                    target_open = random.uniform(self.config.OPEN_MIN, self.config.OPEN_MAX)
+
+                await tweener.tween(
+                    param=self.config.OPEN_PARAMETER,
+                    end=target_open,
+                    duration=0.05, #0.06 0.07都会提前结束
+                    easing_func=Easing.linear,
+                    priority=2,  # 高优先级以覆盖其他可能影响嘴部的动画
+                )
+                await asyncio.sleep(0.05)
+
+        except asyncio.CancelledError:
+            logger.info("嘴型同步任务被取消.")
+        finally:
+            logger.info("嘴型同步结束, 闭合嘴巴.")
+            await tweener.tween(
+                param=self.config.OPEN_PARAMETER,
+                end=self.config.OPEN_MIN,
+                duration=0.2,
+                easing_func=Easing.out_quad,
+                priority=2,
+            )
+
+
+mouth_sync_controller = MouthSyncController()
