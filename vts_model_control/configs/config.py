@@ -75,6 +75,13 @@ class BilibiliConfigs(ConfigBase):
     AC_TIME_VALUE: str = Field(default="", description="Bilibili直播 ac_time_value 可不填")
 
 
+class FFmpegConfig(ConfigBase):
+    """FFmpeg 可执行路径配置"""
+
+    FFMPEG_CMD: str = Field(default="./ffmpeg/ffmpeg.exe", description="ffmpeg 可执行文件完整路径或命令名")
+    FFPLAY_CMD: str = Field(default="./ffmpeg/ffplay.exe", description="ffplay 可执行文件完整路径或命令名")
+
+
 class VTSModelControlConfig(ConfigBase):
     """VTS面部控制总配置"""
 
@@ -87,6 +94,7 @@ class VTSModelControlConfig(ConfigBase):
     API: ApiConfig = Field(default_factory=ApiConfig)
     BILIBILI_LIVE: BilibiliConfigs = Field(default_factory=BilibiliConfigs)
     TTS: VITSSimpleAPIConfig = Field(default_factory=VITSSimpleAPIConfig)
+    FFMPEG: FFmpegConfig = Field(default_factory=FFmpegConfig)
 
 
 try:

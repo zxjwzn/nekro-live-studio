@@ -8,6 +8,8 @@ from typing import AsyncIterator, List, Optional, TypeVar
 
 from utils.logger import logger
 
+from configs.config import config
+
 T = TypeVar("T")
 
 
@@ -41,7 +43,7 @@ async def _analyze_loudness_stream(audio_stream: AsyncIterator[bytes], loudness_
     使用 ffmpeg 分析音频流的响度 (LUFS), 并将结果放入队列.
     """
     args = [
-        "ffmpeg",
+        config.FFMPEG.FFMPEG_CMD,
         "-hide_banner",
         "-nostats",
         "-i",
@@ -121,7 +123,7 @@ async def play_audio_stream_with_ffplay(
 
     try:
         args = [
-            "ffplay",
+            config.FFMPEG.FFPLAY_CMD,
             "-autoexit",
             "-nodisp",
             "-i",
@@ -179,7 +181,7 @@ async def play_audio_stream_with_ffplay(
             return False
 
     except FileNotFoundError:
-        logger.error("`ffplay` 未找到，请确保已安装 ffmpeg 并将其添加至系统 PATH")
+        logger.error(f"`{config.FFMPEG.FFPLAY_CMD}` 未找到，请确保已安装 ffmpeg 并将其添加至系统 PATH 或在配置中设置正确的路径")
         return False
     except Exception as e:
         logger.error(f"播放音频流时发生未知错误: {e}")

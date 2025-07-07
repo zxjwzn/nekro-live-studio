@@ -26,6 +26,7 @@ from schemas.actions import (
 )
 from services.action_scheduler import action_scheduler
 from services.animation_player import animation_player
+from services.audio_manager import audio_manager
 from services.controller_manager import controller_manager
 from services.subtitle_broadcaster import subtitle_broadcaster
 from services.tweener import tweener
@@ -236,22 +237,17 @@ async def websocket_animate_control_endpoint(websocket: WebSocket):
                         await websocket.send_json({"status": "error", "message": f"获取表情列表失败: {e!s}"})
                 elif action_type == "get_sounds":
                     try:
-                        logger.info("开始扫描音效文件...")
-                        audio_dir = Path("data/resources/audios")
-                        logger.info(f"扫描目录: {audio_dir.resolve()}")
-                        all_wav_files = [p.name for p in audio_dir.glob("*.wav")]
-                        logger.info(f"找到 {len(all_wav_files)} 个 .wav 文件")
-                        
-                        logger.info("准备发送音效列表...")
+                        logger.info("收到 get_sounds action, 获取音效列表及其描述...")
+                        sounds_with_descriptions = audio_manager.get_sounds_with_descriptions()
 
                         await websocket.send_json(
                             ResponseMessage(
                                 status="success",
                                 message="音效列表已获取",
-                                data={"type": "sound_play", "sounds": all_wav_files},
+                                data={"type": "get_sounds", "sounds": sounds_with_descriptions},
                             ).model_dump(),
                         )
-                        logger.info("音效列表已成功发送。")
+                        logger.info("音效列表及描述已成功发送。")
                     except Exception as e:
                         logger.error(f"获取音效列表时发生错误: {e}", exc_info=True)
                         await websocket.send_json({"status": "error", "message": f"获取音效列表失败: {e!s}"})

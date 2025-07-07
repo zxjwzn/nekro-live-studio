@@ -32,6 +32,14 @@ async def test_animation_control():
         # await websocket.send(json.dumps(expression))
         # response = await websocket.recv()
         # print(response)
+        get_sounds = {
+            "type": "get_sounds",
+            "data": {
+            },
+        }
+        await websocket.send(json.dumps(get_sounds))
+        response = await websocket.recv()
+        print(response)
         execute_command = {
             "type": "execute",
             "data": {

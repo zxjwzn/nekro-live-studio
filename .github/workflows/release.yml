@@ -1,0 +1,62 @@
+name: Build and Release
+
+on:
+  release:
+    types: [created]
+
+permissions:
+  contents: write  # 允许上传 Release 资产
+
+jobs:
+  build-windows:
+    name: Build Windows artifact
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Install project dependencies (prod only)
+        run: |
+          poetry install --no-dev
+          pip install pyinstaller pyyaml
+
+      - name: Build standalone executable using PyInstaller
+        run: |
+          pyinstaller --clean --onefile --name vts_model_control vts_model_control/main.py --distpath dist
+
+      - name: Download static FFmpeg build
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip" -OutFile ffmpeg.zip
+          Expand-Archive ffmpeg.zip -DestinationPath ffmpeg_tmp
+          $folder = Get-ChildItem ffmpeg_tmp | Select-Object -First 1
+          New-Item -ItemType Directory -Path dist/ffmpeg | Out-Null
+          Move-Item "$($folder.FullName)/bin/*" dist/ffmpeg
+
+      - name: Copy resources & configs
+        run: |
+          mkdir dist/data
+          xcopy /E /I data dist/data
+
+      - name: Create one-click start script
+        run: |
+          echo @echo off> dist/start.bat
+          echo cd /d %%~dp0>> dist/start.bat
+          echo vts_model_control.exe>> dist/start.bat
+
+      - name: Compress artifact
+        run: Compress-Archive -Path dist/* -DestinationPath vts_model_control_windows.zip
+
+      - name: Attach artifact to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: vts_model_control_windows.zip 
