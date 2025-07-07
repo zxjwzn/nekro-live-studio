@@ -49,9 +49,10 @@ jobs:
           Move-Item "$($folder.FullName)/bin/*" dist/ffmpeg
 
       - name: Copy resources & configs
+        shell: pwsh
         run: |
-          mkdir dist/data
-          xcopy /E /I data dist/data
+          New-Item -ItemType Directory -Path dist/data -Force | Out-Null
+          Copy-Item -Path data/* -Destination dist/data -Recurse -Force
 
       - name: Create one-click start script
         run: |
