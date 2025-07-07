@@ -33,6 +33,7 @@ jobs:
       - name: Install Poetry & runtime dependencies
         run: |
           pip install poetry==2.1.3
+          pip install pyinstaller pyyaml
           poetry config virtualenvs.create false
           poetry install --only main --no-interaction --no-ansi --no-root
 
