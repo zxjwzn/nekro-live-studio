@@ -3,10 +3,10 @@ import io
 from typing import AsyncIterator, Literal, Optional
 
 import httpx
-from services.ffmpeg import play_audio_stream_with_ffplay
-from utils.logger import logger
 
-from configs.config import config
+from ...configs.config import config
+from ...services.ffmpeg import play_audio_stream_with_ffplay
+from ...utils.logger import logger
 
 
 class VITSSimpleAPIClient:

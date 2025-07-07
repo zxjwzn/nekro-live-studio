@@ -1,11 +1,11 @@
 import asyncio
 import contextlib
 import random
-from typing import Dict, Optional, Set, Tuple
+from typing import Dict, Optional, Tuple
 
-from clients.vtuber_studio.plugin import plugin
-from utils.easing import Easing
-from utils.logger import logger
+from ..clients.vtuber_studio.plugin import plugin
+from ..utils.easing import Easing
+from ..utils.logger import logger
 
 
 class Tweener:

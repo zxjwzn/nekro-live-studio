@@ -3,8 +3,8 @@ import inspect
 import re
 from typing import Dict, List, Optional
 
-from controllers.base_controller import AnimationType, BaseController
-from utils.logger import logger
+from ..controllers.base_controller import AnimationType, BaseController
+from ..utils.logger import logger
 
 
 class AnimationManager:

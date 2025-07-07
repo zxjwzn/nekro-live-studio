@@ -1,14 +1,12 @@
 import asyncio
 import random
-from pathlib import Path
 from typing import Type
 
 from pydantic import Field
-from services.tweener import tweener
-from utils.logger import logger
 
-from configs.base import ConfigBase
-
+from ..configs.base import ConfigBase
+from ..services.tweener import tweener
+from ..utils.logger import logger
 from .base_controller import CONFIG_DIR, IdleController
 
 

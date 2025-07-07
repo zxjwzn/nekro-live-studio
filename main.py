@@ -1,20 +1,24 @@
 import asyncio
 import sys
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 import uvicorn
-from clients.live.bilibili_live import bilibili_live_client
-from clients.vits_simple_api.client import vits_simple_api_client
-from clients.vtuber_studio.plugin import plugin
-from controllers.blink_controller import BlinkController
-from controllers.body_swing_controller import BodySwingController
-from controllers.breathing_controller import BreathingController
-from controllers.mouth_expression_controller import MouthExpressionController
-from controllers.mouth_sync import MouthSyncController
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
-from schemas.actions import (
+from starlette.staticfiles import StaticFiles
+
+from vts_model_control.clients.live.bilibili_live import bilibili_live_client
+from vts_model_control.clients.vits_simple_api.client import vits_simple_api_client
+from vts_model_control.clients.vtuber_studio.plugin import plugin
+from vts_model_control.configs.config import config, reload_config, save_config
+from vts_model_control.controllers.blink_controller import BlinkController
+from vts_model_control.controllers.body_swing_controller import BodySwingController
+from vts_model_control.controllers.breathing_controller import BreathingController
+from vts_model_control.controllers.mouth_expression_controller import (
+    MouthExpressionController,
+)
+from vts_model_control.controllers.mouth_sync import MouthSyncController
+from vts_model_control.schemas.actions import (
     Animation,
     Execute,
     Expression,
@@ -24,17 +28,14 @@ from schemas.actions import (
     Say,
     SoundPlay,
 )
-from services.action_scheduler import action_scheduler
-from services.animation_player import animation_player
-from services.audio_manager import audio_manager
-from services.controller_manager import controller_manager
-from services.subtitle_broadcaster import subtitle_broadcaster
-from services.tweener import tweener
-from services.websocket_manager import manager
-from starlette.staticfiles import StaticFiles
-from utils.logger import logger
-
-from configs.config import config, reload_config, save_config
+from vts_model_control.services.action_scheduler import action_scheduler
+from vts_model_control.services.animation_player import animation_player
+from vts_model_control.services.audio_manager import audio_manager
+from vts_model_control.services.controller_manager import controller_manager
+from vts_model_control.services.subtitle_broadcaster import subtitle_broadcaster
+from vts_model_control.services.tweener import tweener
+from vts_model_control.services.websocket_manager import manager
+from vts_model_control.utils.logger import logger
 
 
 @asynccontextmanager

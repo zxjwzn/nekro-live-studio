@@ -39,7 +39,7 @@ jobs:
 
       - name: Build standalone executable using PyInstaller
         run: |
-          pyinstaller --clean --onefile --name vts_model_control vts_model_control/main.py --distpath dist
+          pyinstaller --clean --onefile --name vts_model_control main.py --distpath dist
 
       - name: Download static FFmpeg build
         shell: pwsh

@@ -9,9 +9,10 @@ import qrcode
 from bilibili_api import Credential, live, sync
 from bilibili_api.exceptions.LiveException import LiveException
 from bilibili_api.login_v2 import QrCodeLogin, QrCodeLoginEvents
-from configs.config import config, save_config
-from schemas.bilibili_live import Danmaku
-from utils.logger import logger
+
+from ...configs.config import config, save_config
+from ...schemas.bilibili_live import Danmaku
+from ...utils.logger import logger
 
 _websocket_manager = None
 

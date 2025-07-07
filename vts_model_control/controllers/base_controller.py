@@ -5,13 +5,12 @@ from enum import Enum
 from pathlib import Path
 from typing import Generic, Optional, Type, TypeVar
 
-from clients.vtuber_studio.exceptions import (
+from ..clients.vtuber_studio.exceptions import (
     VTSConnectionError,
 )
-from clients.vtuber_studio.plugin import plugin
-from utils.logger import logger
-
-from configs.base import ConfigBase
+from ..clients.vtuber_studio.plugin import plugin
+from ..configs.base import ConfigBase
+from ..utils.logger import logger
 
 TConfig = TypeVar("TConfig", bound=ConfigBase)
 

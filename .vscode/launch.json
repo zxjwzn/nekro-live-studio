@@ -6,7 +6,7 @@
             "type": "debugpy",
             "request": "launch",
             // 指向你的 main.py 路径
-            "program": "${workspaceFolder}/vts_model_control/main.py",
+            "program": "${workspaceFolder}/main.py",
             "console": "integratedTerminal",
             "justMyCode": true
         }

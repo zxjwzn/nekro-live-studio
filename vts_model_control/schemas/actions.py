@@ -2,7 +2,7 @@ from typing import Any, Dict, Literal, Optional, Union
 
 from pydantic import BaseModel, Field
 
-from configs.config import config
+from ..configs.config import config
 
 
 class SoundPlayData(BaseModel):

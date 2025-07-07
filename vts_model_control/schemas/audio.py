@@ -2,7 +2,7 @@ from typing import Dict
 
 from pydantic import Field
 
-from configs.base import ConfigBase
+from ..configs.base import ConfigBase
 
 
 class AudioDescriptionFile(ConfigBase):

@@ -3,13 +3,12 @@ import sys
 from asyncio import Queue
 from collections import deque
 from datetime import datetime
-from pathlib import Path
 from types import TracebackType
 from typing import AsyncGenerator, Dict, List, Optional, Set
 
 from loguru import logger
 
-from configs.config import config
+from ..configs.config import config
 
 # 内存中保存最近的日志记录
 log_records = deque(maxlen=1000)

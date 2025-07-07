@@ -2,7 +2,8 @@ import asyncio
 from typing import List
 
 from fastapi import WebSocket
-from utils.logger import logger
+
+from ..utils.logger import logger
 
 
 class SubtitleBroadcaster:

@@ -1,8 +1,8 @@
 from pathlib import Path
 from typing import Dict, List
 
-from schemas.audio import AudioDescriptionFile
-from utils.logger import logger
+from ..schemas.audio import AudioDescriptionFile
+from ..utils.logger import logger
 
 AUDIO_DIR = Path("data/resources/audios")
 DESCRIPTIONS_FILE = AUDIO_DIR / "descriptions.yaml"

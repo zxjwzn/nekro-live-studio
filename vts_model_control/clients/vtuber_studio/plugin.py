@@ -5,9 +5,8 @@ VTubeStudio 插件高级接口
 import contextlib
 from typing import Any, Callable, Coroutine, Dict, List, Optional  # noqa: F401
 
-from configs.config import config
-from utils.logger import logger
-
+from ...configs.config import config
+from ...utils.logger import logger
 from .client import VTSClient
 from .models import (
     APIStateRequest,

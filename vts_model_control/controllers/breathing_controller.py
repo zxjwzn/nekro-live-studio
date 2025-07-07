@@ -3,12 +3,11 @@ import random
 from typing import Type
 
 from pydantic import Field
-from services.tweener import tweener
-from utils.easing import Easing
-from utils.logger import logger
 
-from configs.base import ConfigBase
-
+from ..configs.base import ConfigBase
+from ..services.tweener import tweener
+from ..utils.easing import Easing
+from ..utils.logger import logger
 from .base_controller import IdleController
 
 

@@ -2,7 +2,7 @@ from typing import List
 
 from pydantic import BaseModel, Field
 
-from configs.config import config
+from ..configs.config import config
 
 
 class Danmaku(BaseModel):

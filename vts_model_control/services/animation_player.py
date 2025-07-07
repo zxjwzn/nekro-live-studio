@@ -1,12 +1,13 @@
-import asyncio
 import random
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 import json5
 from pydantic import ValidationError
-from schemas.actions import Action, Animation, AnimationData
-from schemas.preformed_animation import (
+from simpleeval import SimpleEval
+
+from ..schemas.actions import Action, Animation, AnimationData
+from ..schemas.preformed_animation import (
     ActionTemplate,
     AnimationInfo,
     AnimationTemplate,
@@ -14,9 +15,8 @@ from schemas.preformed_animation import (
     RandomFloat,
     RandomInt,
 )
-from services.action_scheduler import action_scheduler
-from simpleeval import SimpleEval
-from utils.logger import logger
+from ..services.action_scheduler import action_scheduler
+from ..utils.logger import logger
 
 ANIMATIONS_DIR = Path("./data/resources/animations")
 ANIMATIONS_DIR.mkdir(parents=True, exist_ok=True)

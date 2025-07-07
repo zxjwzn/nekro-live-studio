@@ -2,17 +2,15 @@ import asyncio
 from collections import deque
 from typing import Deque, Optional, cast
 
-from clients.vits_simple_api.client import vits_simple_api_client
-from clients.vtuber_studio.plugin import plugin
-from schemas.actions import Action, Animation, Expression, Say, SoundPlay, SoundPlayData
-from services.audio_player import audio_player
-from services.controller_manager import controller_manager
-from services.subtitle_broadcaster import subtitle_broadcaster
-from services.tweener import tweener
-from utils.easing import Easing
-from utils.logger import logger
-
-from configs.config import config
+from ..clients.vits_simple_api.client import vits_simple_api_client
+from ..clients.vtuber_studio.plugin import plugin
+from ..schemas.actions import Action, Animation, Expression, Say, SoundPlay
+from ..services.audio_player import audio_player
+from ..services.controller_manager import controller_manager
+from ..services.subtitle_broadcaster import subtitle_broadcaster
+from ..services.tweener import tweener
+from ..utils.easing import Easing
+from ..utils.logger import logger
 
 
 class ActionScheduler:
