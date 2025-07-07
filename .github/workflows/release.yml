@@ -64,6 +64,13 @@ jobs:
       - name: Compress artifact
         run: Compress-Archive -Path dist/* -DestinationPath vts_model_control_windows.zip
 
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vts_model_control_windows
+          path: vts_model_control_windows.zip
+          retention-days: 7
+
       - name: Attach artifact to GitHub Release
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v1
