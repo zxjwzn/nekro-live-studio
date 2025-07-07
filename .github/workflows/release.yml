@@ -30,12 +30,10 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install Poetry
-        run: pip install poetry
-
-      - name: Install project dependencies (prod only)
+      - name: Install build dependencies
         run: |
-          poetry install --no-dev
+          pip install --upgrade pip
+          pip install .
           pip install pyinstaller pyyaml
 
       - name: Build standalone executable using PyInstaller
