@@ -21,6 +21,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.inputs.ref || github.ref }}
 
       - name: Setup Python
         uses: actions/setup-python@v4
@@ -64,6 +67,7 @@ jobs:
         run: Compress-Archive -Path dist/* -DestinationPath vts_model_control_windows.zip
 
       - name: Attach artifact to GitHub Release
+        if: github.event_name == 'release'
         uses: softprops/action-gh-release@v1
         with:
           files: vts_model_control_windows.zip 
