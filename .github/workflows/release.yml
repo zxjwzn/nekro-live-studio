@@ -2,7 +2,13 @@ name: Build and Release
 
 on:
   release:
-    types: [created]
+    types: [created]          # 原有触发
+  workflow_dispatch:          # 新增：允许手动执行
+    inputs:
+      ref:
+        description: "要打包的分支或标签"
+        required: false
+        default: main
 
 permissions:
   contents: write  # 允许上传 Release 资产
