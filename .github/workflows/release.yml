@@ -30,15 +30,16 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install build dependencies
+      - name: Install Poetry & runtime dependencies
         run: |
-          pip install --upgrade pip
-          pip install .
-          pip install pyinstaller pyyaml
+          pip install poetry==2.1.3
+          poetry config virtualenvs.create false
+          poetry install --only main --no-interaction --no-ansi --no-root
 
       - name: Build standalone executable using PyInstaller
         run: |
-          pyinstaller --clean --onefile --name vts_model_control vts_model_control/main.py --distpath dist
+          pyinstaller --clean --onefile --name vts_model_control \
+            vts_model_control/main.py --distpath dist
 
       - name: Download static FFmpeg build
         shell: pwsh
