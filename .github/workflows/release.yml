@@ -39,9 +39,7 @@ jobs:
 
       - name: Build standalone executable using PyInstaller
         run: |
-          pyinstaller --clean --onefile --name vts_model_control main.py \
-            --distpath dist \
-            --collect-submodules bilibili_api.clients
+          pyinstaller --clean --onefile --name vts_model_control main.py --distpath dist --collect-submodules bilibili_api.clients
 
       - name: Download static FFmpeg build
         shell: pwsh
