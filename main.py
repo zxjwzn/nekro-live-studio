@@ -271,7 +271,7 @@ async def websocket_animate_control_endpoint(websocket: WebSocket):
 if __name__ == "__main__":
     logger.info(f"API服务器将在 http://{config.API.HOST}:{config.API.PORT} 上启动")
     uvicorn.run(
-        "main:app",
+        app,
         host=config.API.HOST,
         port=config.API.PORT,
         log_level=config.LOG_LEVEL.lower(),
