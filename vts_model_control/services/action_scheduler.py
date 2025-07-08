@@ -133,13 +133,19 @@ class ActionScheduler:
                             ),
                         )
 
-                        # 等待这个动作自己的音频开始, 或是在开始前就失败
+                        # 等待音频开始（或在开始前就失败）
+                        start_wait_task = asyncio.create_task(start_event.wait())
+                        finished_wait_task = asyncio.create_task(finished_event.wait())
+
                         done, pending = await asyncio.wait(
-                            [start_event.wait(), finished_event.wait()],
+                            {start_wait_task, finished_wait_task},
                             return_when=asyncio.FIRST_COMPLETED,
                         )
+
                         for task in pending:
                             task.cancel()
+                        # 等待被取消任务的收尾，防止未等待警告
+                        await asyncio.gather(*pending, return_exceptions=True)
 
                         # 如果任务在开始前就失败了, 中止动作
                         if finished_event.is_set() and not start_event.is_set():
