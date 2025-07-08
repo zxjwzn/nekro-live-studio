@@ -22,7 +22,8 @@ def get_websocket_manager():
     global _websocket_manager
     if _websocket_manager is None:
         try:
-            from services.websocket_manager import manager
+            # 使用绝对包路径导入以避免因相对路径导致的 ImportError
+            from ...services.websocket_manager import manager
 
             _websocket_manager = manager
         except ImportError:
