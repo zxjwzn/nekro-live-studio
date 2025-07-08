@@ -45,7 +45,7 @@ async def lifespan(app: FastAPI):
     # 连接 VTS
     logger.info(f"正在连接到 VTube Studio, 地址: {config.PLUGIN.VTS_ENDPOINT} 请在VTube Studio中点击认证")
     if not await plugin.connect_and_authenticate(config.PLUGIN.AUTHENTICATION_TOKEN):
-        logger.error("连接 VTS 失败, 请检查 VTube Studio 是否已开启并加载API插件")
+        logger.warning("连接 VTS 失败, 请检查 VTube Studio 是否已开启并加载API插件 或 检查认证token是否正确")
         sys.exit(1)
     if plugin.client.authentication_token:
         config.PLUGIN.AUTHENTICATION_TOKEN = plugin.client.authentication_token
@@ -61,7 +61,9 @@ async def lifespan(app: FastAPI):
     
     asyncio.create_task(controller_manager.start_all_idle())
     asyncio.create_task(bilibili_live_client.start())
-
+    logger.info("应用启动完成")
+    logger.info(f"字幕页面位于 http://{config.API.HOST}:{config.API.PORT}/static/frontend/index.html 请在浏览器或是OBS中使用浏览器源打开")
+    logger.info(f"控制端 WebSocket 地址为 ws://{config.API.HOST}:{config.API.PORT} 请在Nekro-Agent的webui界面填写")
     yield
 
     # Shutdown

@@ -80,7 +80,7 @@ class VTSPlugin:
             # 确保断开连接
             with contextlib.suppress(Exception):
                 await self.client.disconnect()
-            raise
+            return False
 
     async def disconnect(self) -> None:
         """断开与 VTube Studio 的连接。"""
