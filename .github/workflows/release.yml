@@ -39,7 +39,7 @@ jobs:
 
       - name: Build standalone executable using PyInstaller
         run: |
-          pyinstaller --clean --onefile --name vts_model_control main.py --distpath dist --collect-submodules bilibili_api.clients
+          pyinstaller --clean --onefile --name nekro_live_studio main.py --distpath dist --collect-submodules bilibili_api.clients
 
       - name: Download static FFmpeg build
         shell: pwsh
@@ -60,20 +60,28 @@ jobs:
         run: |
           echo @echo off> dist/start.bat
           echo cd /d %%~dp0>> dist/start.bat
-          echo vts_model_control.exe>> dist/start.bat
+          echo nekro_live_studio.exe>> dist/start.bat
+
+      - name: Restructure for packaging
+        shell: pwsh
+        run: |
+          if (Test-Path nekro_live_studio) { Remove-Item -Recurse -Force nekro_live_studio }
+          Move-Item -Path dist -Destination nekro_live_studio
 
       - name: Compress artifact
-        run: Compress-Archive -Path dist/* -DestinationPath vts_model_control_windows.zip
+        shell: pwsh
+        run: |
+          Compress-Archive -Path nekro_live_studio -DestinationPath nekro_live_studio_windows.zip -Force
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: vts_model_control_windows
-          path: vts_model_control_windows.zip
+          name: nekro_live_studio_windows
+          path: nekro_live_studio_windows.zip
           retention-days: 7
 
       - name: Attach artifact to GitHub Release
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v1
         with:
-          files: vts_model_control_windows.zip 
+          files: nekro_live_studio_windows.zip 
