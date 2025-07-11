@@ -12,23 +12,8 @@ from bilibili_api.login_v2 import QrCodeLogin, QrCodeLoginEvents
 
 from ...configs.config import config, save_config
 from ...schemas.bilibili_live import Danmaku
+from ...services.websocket_manager import manager
 from ...utils.logger import logger
-
-_websocket_manager = None
-
-
-def get_websocket_manager():
-    """延迟导入WebSocket管理器以避免循环依赖"""
-    global _websocket_manager
-    if _websocket_manager is None:
-        try:
-            # 使用绝对包路径导入以避免因相对路径导致的 ImportError
-            from ...services.websocket_manager import manager
-
-            _websocket_manager = manager
-        except ImportError:
-            logger.warning("无法导入WebSocket管理器，弹幕转发功能将不可用")
-    return _websocket_manager
 
 
 class BilibiliLiveClient:
@@ -40,9 +25,10 @@ class BilibiliLiveClient:
         self.live_danmaku: Optional[live.LiveDanmaku] = None
         self._running = False
         self._task: Optional[asyncio.Task] = None
-        # 触发器相关
-        self._message_count: int = 0
+        # 触发器相关 - 队列模式
+        self._danmaku_queue: list[Danmaku] = []
         self._first_message_time: float = 0.0
+        self._check_timer_task: Optional[asyncio.Task] = None
 
         if not self.room_id or self.room_id == "0":
             logger.warning("未配置B站直播间ID，直播监听功能未启用")
@@ -159,11 +145,8 @@ class BilibiliLiveClient:
         async def on_danmaku(event):
             try:
                 danmaku_obj = self._parse_danmaku(event["data"])
-                danmaku_obj = self._handle_trigger_logic(danmaku_obj)  # 仅对普通弹幕应用触发逻辑
-                logger.info(f"【弹幕】{danmaku_obj.username}: {danmaku_obj.text} (trigger: {danmaku_obj.is_trigger})")
-                manager = get_websocket_manager()
-                if manager:
-                    await manager.broadcast_json_to_path("/ws/danmaku", danmaku_obj.model_dump())
+                await self._add_to_queue(danmaku_obj)  # 添加到队列而不是直接转发
+                logger.info(f"【弹幕】{danmaku_obj.username}: {danmaku_obj.text}")
             except Exception:
                 logger.exception("处理弹幕消息时发生错误")
 
@@ -174,9 +157,7 @@ class BilibiliLiveClient:
                 if not danmaku_obj:
                     return
                 logger.info(f"【互动】{danmaku_obj.text}")
-                manager = get_websocket_manager()
-                if manager:
-                    await manager.broadcast_json_to_path("/ws/danmaku", danmaku_obj.model_dump())
+                await manager.broadcast_json_to_path("/ws/danmaku", danmaku_obj.model_dump())
             except Exception:
                 logger.exception("处理互动消息时发生错误")
 
@@ -185,9 +166,7 @@ class BilibiliLiveClient:
             try:
                 danmaku_obj = self._parse_super_chat(event["data"])
                 logger.info(f"【SC】{danmaku_obj.text}")
-                manager = get_websocket_manager()
-                if manager:
-                    await manager.broadcast_json_to_path("/ws/danmaku", danmaku_obj.model_dump())
+                await manager.broadcast_json_to_path("/ws/danmaku", danmaku_obj.model_dump())
             except Exception:
                 logger.exception("处理SC消息时发生错误")
 
@@ -203,25 +182,79 @@ class BilibiliLiveClient:
         async def on_disconnect(event):
             logger.warning(f"【系统】与直播间 {self.room_id} 的连接已断开: {event}")
 
-    def _handle_trigger_logic(self, danmaku_obj: Danmaku) -> Danmaku:
-        """处理弹幕触发逻辑"""
-        # 如果计时器未启动,则启动计时器
-        if self._message_count == 0:
+        @self.live_danmaku.on("SEND_GIFT")
+        async def on_gift(event):
+            try:
+                danmaku_obj = self._parse_gift(event["data"])
+                logger.info(f"【礼物】{danmaku_obj.text}")
+                await manager.broadcast_json_to_path(
+                    "/ws/danmaku", danmaku_obj.model_dump(),
+                )
+            except Exception:
+                logger.exception("处理礼物消息时发生错误")
+
+    async def _add_to_queue(self, danmaku_obj: Danmaku) -> None:
+        """将弹幕添加到队列并检查触发条件"""
+        # 如果队列为空,启动计时器
+        if not self._danmaku_queue:
             self._first_message_time = time.time()
+            # 启动定时器检查
+            if self._check_timer_task:
+                self._check_timer_task.cancel()
+            self._check_timer_task = asyncio.create_task(self._check_time_trigger())
         
-        self._message_count += 1
-
-        trigger_by_count = self._message_count >= config.BILIBILI_LIVE.TRIGGER_COUNT
-        time_elapsed = time.time() - self._first_message_time
-        trigger_by_time = time_elapsed > config.BILIBILI_LIVE.TRIGGER_TIME and self._first_message_time != 0.0
-
-        if trigger_by_count or trigger_by_time:
-            danmaku_obj.is_trigger = True
-            # 重置计数器和计时器
-            self._message_count = 0
-            self._first_message_time = 0.0
+        # 添加到队列
+        self._danmaku_queue.append(danmaku_obj)
         
-        return danmaku_obj
+        # 检查条数触发
+        if len(self._danmaku_queue) >= config.BILIBILI_LIVE.TRIGGER_COUNT:
+            await self._trigger_and_flush()
+
+    async def _check_time_trigger(self) -> None:
+        """检查时间触发条件"""
+        try:
+            await asyncio.sleep(config.BILIBILI_LIVE.TRIGGER_TIME)
+            if self._danmaku_queue:  # 如果队列中还有弹幕
+                await self._trigger_and_flush()
+        except asyncio.CancelledError:
+            pass  # 任务被取消是正常的
+
+    async def _trigger_and_flush(self) -> None:
+        """触发转发并清空队列"""
+        if not self._danmaku_queue:
+            return
+            
+        # 取消定时器
+        if self._check_timer_task:
+            self._check_timer_task.cancel()
+            self._check_timer_task = None
+        
+        # 批量转发弹幕，最后一条标记为触发
+        for i, danmaku in enumerate(self._danmaku_queue):
+            # 最后一条弹幕标记为触发
+            if i == len(self._danmaku_queue) - 1:
+                danmaku.is_trigger = True
+            await manager.broadcast_json_to_path("/ws/danmaku", danmaku.model_dump())
+            logger.debug(f"【转发弹幕】{danmaku.username}: {danmaku.text} (trigger: {danmaku.is_trigger})")
+        
+        # 清空队列和重置计时器
+        logger.debug(f"触发转发完成，共转发 {len(self._danmaku_queue)} 条弹幕")
+        self._danmaku_queue.clear()
+        self._first_message_time = 0.0
+
+    def _parse_gift(self, data: dict) -> Danmaku:
+        gift_data = data["data"]
+        username = gift_data["uname"]
+        gift_name = gift_data["giftName"]
+        num = gift_data["num"]
+        return Danmaku(
+            uid=str(gift_data["uid"]),
+            username=username,
+            text=f"{username} 赠送了 {num}个 {gift_name}",
+            time=gift_data["timestamp"],
+            is_system=True,
+            is_trigger=True,  # 礼物默认直接触发
+        )
 
     def _parse_danmaku(self, data: dict) -> Danmaku:
         info = data["info"]
@@ -327,6 +360,16 @@ class BilibiliLiveClient:
             return
 
         self._running = False
+        
+        # 清理定时器任务
+        if self._check_timer_task:
+            self._check_timer_task.cancel()
+            self._check_timer_task = None
+        
+        # 如果队列中还有弹幕，触发最后一次转发
+        if self._danmaku_queue:
+            await self._trigger_and_flush()
+        
         if self.live_danmaku:
             await self.live_danmaku.disconnect()
 

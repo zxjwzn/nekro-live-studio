@@ -77,11 +77,23 @@ class ActionScheduler:
                 tts_start_event.clear()
 
             tasks = []
-            for action in actions_to_run:
-                tasks.append(asyncio.create_task(self._execute_action(action, tts_start_event)))
+            try:
+                for action in actions_to_run:
+                    tasks.append(asyncio.create_task(self._execute_action(action, tts_start_event)))
 
-            if tasks:
-                await asyncio.gather(*tasks)
+                if tasks:
+                    await asyncio.gather(*tasks)
+            except Exception:
+                logger.error("动作队列执行中发生错误，中止当前批次的执行。", exc_info=True)
+                for task in tasks:
+                    if not task.done():
+                        task.cancel()
+                if tasks:
+                    await asyncio.gather(*tasks, return_exceptions=True)
+
+                logger.info("由于执行出错，动作队列已清空且循环已中止。")
+                self.clear_queue()
+                break
 
         logger.debug("动作队列执行完成")
 
@@ -100,6 +112,7 @@ class ActionScheduler:
                 await handler.handle(action, tts_start_event=tts_start_event)
             except Exception as e:
                 logger.error(f"执行动作 {action.type} 时处理器发生错误: {e}", exc_info=True)
+                raise  # Re-raise the exception to be caught by execute_queue
         else:
             logger.warning(f"没有找到可以处理动作类型 '{action.type}' 的处理器。")
 

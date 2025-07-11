@@ -7,6 +7,7 @@ import httpx
 from ...configs.config import config
 from ...services.ffmpeg import play_audio_stream_with_ffplay
 from ...utils.logger import logger
+from .exceptions import VITSSimpleAPIError
 
 
 class VITSSimpleAPIClient:
@@ -80,8 +81,10 @@ class VITSSimpleAPIClient:
                     yield chunk
         except httpx.HTTPStatusError as e:
             logger.error(f"HTTP错误: {e.response.status_code} - {e.response.text}")
+            raise VITSSimpleAPIError(error_message=e.response.text, status_code=e.response.status_code) from e
         except Exception as e:
             logger.error(f"生成语音流时发生错误: {e}")
+            raise VITSSimpleAPIError(error_message=str(e)) from e
 
 
 vits_simple_api_client = VITSSimpleAPIClient()

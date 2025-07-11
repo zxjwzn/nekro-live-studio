@@ -15,4 +15,4 @@ class Danmaku(BaseModel):
     time: int = Field(default=0, description="弹幕发送时间")
     url: List[str] = Field(default_factory=list, description="弹幕中的表情图片url列表")
     is_trigger: bool = Field(default=False, description="是否触发LLM (由ws客户端接收并处理)")
-    is_system: bool = Field(default=False, description="是否作为system身份发送 (由ws客户端接收并处理)")
+    is_system: bool = Field(default=False, description="是否为系统消息")
