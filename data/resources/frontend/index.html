@@ -19,15 +19,14 @@
         /* 字幕容器 */
         #subtitle-container {
             position: fixed;
-            bottom: 5%; /* 距离底部5% */
-            left: 50%;
-            transform: translateX(-50%);
-            width: 75vw; /* 占据屏幕宽度的75% */
-            max-height: 30vh; /* 最大高度为下半屏幕 */
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             display: flex;
             flex-direction: column;
-            justify-content: flex-end;
-            align-items: center;
+            justify-content: center; /* 垂直居中 */
+            align-items: center; /* 水平居中 */
             
             /* 美化文本 */
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
@@ -49,6 +48,19 @@
             white-space: pre-wrap;
         }
 
+        /* 连接状态提示样式 */
+        #connection-status {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #888888;
+            font-size: 2.5vw;
+            text-align: center;
+            display: none; /* 默认隐藏 */
+            user-select: none;
+        }
+
     </style>
 </head>
 <body>
@@ -57,10 +69,16 @@
         <p id="subtitle-text"></p>
     </div>
 
+    <!-- 连接状态提示 -->
+    <div id="connection-status">
+        未连接到字幕
+    </div>
+
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const subtitleTextElement = document.getElementById('subtitle-text');
             const subtitleContainer = document.getElementById('subtitle-container');
+            const connectionStatus = document.getElementById('connection-status');
             
             let ws;
             let currentDisplayTask = null;
@@ -70,6 +88,18 @@
             let currentMessageData = null;
             let waitingForNewMessage = false; // 新增：标记是否在等待新消息
 
+            // 显示连接状态（默认显示未连接）
+            showConnectionStatus();
+
+            function showConnectionStatus() {
+                connectionStatus.style.display = 'block';
+                subtitleTextElement.textContent = ''; // 清空字幕内容
+            }
+
+            function hideConnectionStatus() {
+                connectionStatus.style.display = 'none';
+            }
+
             function connect() {
                 // 动态确定WebSocket地址
                 const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -78,6 +108,7 @@
 
                 ws.onopen = () => {
                     console.log('字幕 WebSocket 已连接');
+                    hideConnectionStatus(); // 连接成功时隐藏状态提示
                     // 启动心跳
                     startHeartbeat();
                 };
@@ -102,6 +133,7 @@
 
                 ws.onclose = () => {
                     console.log('字幕 WebSocket 已断开，尝试 3 秒后重连...');
+                    showConnectionStatus(); // 连接断开时显示状态提示
                     // 停止心跳
                     stopHeartbeat();
                     if (currentDisplayTask) {
@@ -112,6 +144,7 @@
 
                 ws.onerror = (error) => {
                     console.error('WebSocket 错误:', error);
+                    showConnectionStatus(); // 连接错误时显示状态提示
                     ws.close();
                 };
             }
@@ -257,14 +290,14 @@
             }
 
             function checkAndAdjustLayout() {
-                const containerHeight = subtitleContainer.offsetHeight;
-                const windowHeight = window.innerHeight;
-                
-                // 如果容器高度超过屏幕下半部分的50%
-                if (containerHeight > windowHeight * 0.5) {
+                const textHeight = subtitleTextElement.scrollHeight;
+                const containerHeight = subtitleContainer.clientHeight;
+
+                // 如果文本的滚动高度超过了容器的可见高度，说明内容溢出了
+                if (textHeight > containerHeight) {
                     let currentFontSize = parseFloat(window.getComputedStyle(subtitleTextElement).fontSize);
                     // 当超出范围时，循环减小字体直到适应
-                    while (subtitleContainer.offsetHeight > windowHeight * 0.5 && currentFontSize > 10) {
+                    while (subtitleTextElement.scrollHeight > subtitleContainer.clientHeight && currentFontSize > 10) {
                         currentFontSize -= 1; // 每次减小1px
                         subtitleTextElement.style.fontSize = `${currentFontSize}px`;
                     }
