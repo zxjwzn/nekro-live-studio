@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 from .base import ConfigBase
 
-CONFIG_PATH = Path("./data") / "configs" / "vts_model_control.yaml"
+CONFIG_PATH = Path("./data") / "configs" / "nekro_live_studio.yaml"
 CONFIG_DIR = Path("./data") / "configs"
 CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
