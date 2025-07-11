@@ -51,7 +51,7 @@ class ActionScheduler:
     def add_action(self, action: Action) -> float:
         """添加动作到队列并返回其预估完成时间"""
         self.action_queue.append(action)
-        logger.info(f"动作已添加到队列: {action.type}. 队列大小: {len(self.action_queue)}")
+        logger.debug(f"动作已添加到队列: {action.type}. 队列大小: {len(self.action_queue)}")
         return self._get_action_completion_time(action)
 
     async def execute_queue(self, loop: int = 0):
@@ -81,7 +81,7 @@ class ActionScheduler:
             if tasks:
                 await asyncio.gather(*tasks)
 
-        logger.info(f"动作队列执行完成, 共执行 {total_runs} 次")
+        logger.debug("动作队列执行完成")
 
     async def _execute_action(self, action: Action, tts_start_event: Optional[asyncio.Event] = None):
         """执行单个动作，延迟执行"""
@@ -90,7 +90,7 @@ class ActionScheduler:
 
         # 如果有TTS任务，并且当前任务不是那个TTS任务，则等待TTS开始信号
         if tts_start_event and not is_say_with_tts:
-            logger.info(f"动作 {action.type} 等待 TTS 开始...")
+            logger.debug(f"动作 {action.type} 等待 TTS 开始...")
             await tts_start_event.wait()
             # logger.info(f"TTS 已开始, 动作 {action.type} 继续执行.")
 
@@ -98,7 +98,7 @@ class ActionScheduler:
         if delay > 0:
             await asyncio.sleep(delay)
 
-        logger.info(f"执行动作: {action_type} 延迟 {delay}s")
+        logger.debug(f"执行动作: {action_type} 延迟 {delay}s")
 
         try:
             if action_type == "say":
@@ -157,12 +157,12 @@ class ActionScheduler:
                         if is_first_tts_runner and tts_start_event:
                             tts_start_event.set()
 
-                        logger.info("音频已开始播放, 开始显示字幕...")
+                        logger.debug("音频已开始播放, 开始显示字幕...")
                         await subtitle_broadcaster.broadcast(say_action.model_dump_json())
 
                         # 等待音频播放完成
                         await finished_event.wait()
-                        logger.info("音频播放完毕, 发送完成消息.")
+                        logger.debug("音频播放完毕, 发送完成消息.")
                         await subtitle_broadcaster.broadcast('{"type": "finished"}')
                         await speak_task  # 确保后台任务最终完成
 

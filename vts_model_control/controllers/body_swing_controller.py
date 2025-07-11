@@ -73,9 +73,9 @@ class BodySwingController(IdleController[BodySwingConfig]):
         eye_y = self.eye_config.Y_MAX_RANGE - z_norm * (self.eye_config.Y_MAX_RANGE - self.eye_config.Y_MIN_RANGE)
         easing_func = tweener.random_easing()
 
-        logger.info(f"身体摇摆: X: {target_x:.2f}, Z: {target_z:.2f}, 时长: {duration:.2f}s, 缓动: {easing_func.__name__}")
+        logger.debug(f"身体摇摆: X: {target_x:.2f}, Z: {target_z:.2f}, 时长: {duration:.2f}s, 缓动: {easing_func.__name__}")
         if self.eye_config.ENABLED:
-            logger.info(f"眼睛跟随: 目标=({eye_x:.2f}, {eye_y:.2f})")
+            logger.debug(f"眼睛跟随: 目标=({eye_x:.2f}, {eye_y:.2f})")
             await asyncio.gather(
                 tweener.tween(
                     param=self.config.X_PARAMETER,

@@ -45,7 +45,7 @@ class MouthExpressionController(IdleController[MouthExpressionConfig]):
         target_open = random.uniform(self.config.OPEN_MIN, self.config.OPEN_MAX)
         duration = random.uniform(self.config.CHANGE_MIN_DURATION, self.config.CHANGE_MAX_DURATION)
         easing_func = tweener.random_easing()
-        logger.info(
+        logger.debug(
             f"嘴部表情: "
             f"Smile: {target_smile:.2f}, "
             f"Open: {target_open:.2f}, "

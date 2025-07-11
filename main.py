@@ -113,14 +113,14 @@ async def websocket_subtitles_endpoint(websocket: WebSocket):
     await subtitle_broadcaster.connect(websocket)
     client_host = websocket.client.host if websocket.client else "unknown"
     client_port = websocket.client.port if websocket.client else "unknown"
-    logger.info(f"客户端 {client_host}:{client_port} 已连接到 /ws/subtitles")
+    logger.debug(f"客户端 {client_host}:{client_port} 已连接到 /ws/subtitles")
     try:
         while True:
             # 保持连接开放以接收广播
             await websocket.receive_text()
     except WebSocketDisconnect:
         subtitle_broadcaster.disconnect(websocket)
-        logger.info(f"客户端 {client_host}:{client_port} 已从 /ws/subtitles 断开")
+        logger.debug(f"客户端 {client_host}:{client_port} 已从 /ws/subtitles 断开")
 
 
 @app.websocket("/ws/animate_control")
@@ -140,7 +140,7 @@ async def websocket_animate_control_endpoint(websocket: WebSocket):
             try:
                 if action_type == "say":
                     action = Say.model_validate(data)
-                    logger.info(f"收到 Say action，已添加到队列: {action}")
+                    logger.debug(f"收到 Say action，已添加到队列: {action}")
                     action_scheduler.add_action(action)
                     await websocket.send_json(
                         ResponseMessage(
@@ -150,7 +150,7 @@ async def websocket_animate_control_endpoint(websocket: WebSocket):
                     )
                 elif action_type == "animation":
                     action = Animation.model_validate(data)
-                    logger.info(f"收到 Animation action，已添加到队列: {action}")
+                    logger.debug(f"收到 Animation action，已添加到队列: {action}")
                     completion_time = action_scheduler.add_action(action)
                     await websocket.send_json(
                         ResponseMessage(
@@ -161,7 +161,7 @@ async def websocket_animate_control_endpoint(websocket: WebSocket):
                     )
                 elif action_type == "expression":
                     action = Expression.model_validate(data)
-                    logger.info("收到 Expression action")
+                    logger.debug("收到 Expression action")
 
                     completion_time = action_scheduler.add_action(action)
                     await websocket.send_json(
@@ -173,7 +173,7 @@ async def websocket_animate_control_endpoint(websocket: WebSocket):
                     )
                 elif action_type == "execute":
                     action = Execute.model_validate(data)
-                    logger.info(f"收到 Execute action: {action}")
+                    logger.debug(f"收到 Execute action: {action}")
                     # 将耗时任务放入后台执行，避免阻塞WebSocket循环
                     await websocket.send_json(
                         ResponseMessage(
@@ -184,7 +184,7 @@ async def websocket_animate_control_endpoint(websocket: WebSocket):
                     await action_scheduler.execute_queue(loop=action.data.loop)
                 elif action_type == "sound_play":
                     action = SoundPlay.model_validate(data)
-                    logger.info("收到 SoundPlay action")
+                    logger.debug("收到 SoundPlay action")
                     completion_time = action_scheduler.add_action(action)
                     await websocket.send_json(
                         ResponseMessage(
@@ -195,7 +195,7 @@ async def websocket_animate_control_endpoint(websocket: WebSocket):
                     )
                 elif action_type == "list_preformed_animations":
                     _ = ListPreformAnimation.model_validate(data)
-                    logger.info("收到 ListPreformAnimation action")
+                    logger.debug("收到 ListPreformAnimation action")
                     animations_list = animation_player.list_preformed_animations()
                     await websocket.send_json(
                         ResponseMessage(
@@ -211,7 +211,7 @@ async def websocket_animate_control_endpoint(websocket: WebSocket):
                     )
                 elif action_type == "play_preformed_animation":
                     action = PlayPreformAnimation.model_validate(data)
-                    logger.info(f"收到 PlayPreformAnimation action: {action.data.name}")
+                    logger.debug(f"收到 PlayPreformAnimation action: {action.data.name}")
                     completion_time = await animation_player.add_preformed_animation(
                         name=action.data.name,
                         params=action.data.params,
@@ -240,7 +240,7 @@ async def websocket_animate_control_endpoint(websocket: WebSocket):
                         await websocket.send_json({"status": "error", "message": f"获取表情列表失败: {e!s}"})
                 elif action_type == "get_sounds":
                     try:
-                        logger.info("收到 get_sounds action, 获取音效列表及其描述...")
+                        logger.debug("收到 get_sounds action, 获取音效列表及其描述...")
                         sounds_with_descriptions = audio_manager.get_sounds_with_descriptions()
 
                         await websocket.send_json(
@@ -250,7 +250,7 @@ async def websocket_animate_control_endpoint(websocket: WebSocket):
                                 data={"type": "get_sounds", "sounds": sounds_with_descriptions},
                             ).model_dump(),
                         )
-                        logger.info("音效列表及描述已成功发送。")
+                        logger.debug("音效列表及描述已成功发送。")
                     except Exception as e:
                         logger.error(f"获取音效列表时发生错误: {e}", exc_info=True)
                         await websocket.send_json({"status": "error", "message": f"获取音效列表失败: {e!s}"})
@@ -267,7 +267,7 @@ async def websocket_animate_control_endpoint(websocket: WebSocket):
 
     except WebSocketDisconnect:
         manager.disconnect(websocket, path)
-        logger.info(f"客户端 {client_host}:{client_port} 已从 {path} 断开")
+        logger.debug(f"客户端 {client_host}:{client_port} 已从 {path} 断开")
 
 
 if __name__ == "__main__":
