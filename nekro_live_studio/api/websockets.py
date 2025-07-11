@@ -159,7 +159,7 @@ async def websocket_animate_control_endpoint(websocket: WebSocket):
                             ).model_dump(),
                         )
                     except Exception as e:
-                        logger.exception(f"获取表情列表时发生错误: {e!s}")
+                        logger.exception("获取表情列表时发生错误")
                         await websocket.send_json({"status": "error", "message": f"获取表情列表失败: {e!s}"})
                 elif action_type == "get_sounds":
                     try:
@@ -188,8 +188,8 @@ async def websocket_animate_control_endpoint(websocket: WebSocket):
                             message=f"未知的 action 类型: {action_type}",
                         ).model_dump(),
                     )
-            except ValidationError as e:
-                logger.exception(f"Action 数据校验失败: {e!s}, raw_data: {data}")
+            except ValidationError:
+                logger.exception(f"Action 数据校验失败, raw_data: {data}")
 
     except WebSocketDisconnect:
         await manager.disconnect(websocket, path)
