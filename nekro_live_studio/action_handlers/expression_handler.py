@@ -1,7 +1,7 @@
 import asyncio
 from typing import Optional, cast
 
-from ..clients.vtuber_studio.plugin import plugin
+from ..clients.vtube_studio.plugin import plugin
 from ..schemas.actions import Action, Expression
 from .base import ActionHandler
 

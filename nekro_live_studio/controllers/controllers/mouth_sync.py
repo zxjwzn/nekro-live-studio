@@ -2,40 +2,22 @@ import asyncio
 import random
 from typing import Optional, Type
 
-from pydantic import Field
-
-from ..configs.base import ConfigBase
-from ..services.tweener import tweener
-from ..utils.easing import Easing
-from ..utils.logger import logger
-from .base_controller import OneShotController
-
-
-class MouthExpressionConfig(ConfigBase):
-    """嘴部表情配置"""
-
-    ENABLED: bool = Field(default=True, description="是否启用嘴部表情变化")
-    OPEN_MIN: float = Field(default=0.0, description="嘴巴开合最小值（闭合）")
-    OPEN_MAX: float = Field(default=0.7, description="嘴巴开合最大值（张开，可调小避免过度张嘴）")
-    OPEN_PARAMETER: str = Field(default="MouthOpen", description="嘴巴开合控制的参数名")
-    LOUDNESS_THRESHOLD: float = Field(default=-30, description="响度阈值(LUFS)")
+from ...services.tweener import tweener
+from ...utils.easing import Easing
+from ...utils.logger import logger
+from ..base_controller import OneShotController
+from ..config import MouthSyncConfig
+from ..config_manager import config_manager
 
 
-class MouthSyncController(OneShotController[MouthExpressionConfig]):
+class MouthSyncController(OneShotController[MouthSyncConfig]):
     """根据音频响度控制嘴部开合的控制器"""
 
-    @classmethod
-    def get_config_class(cls) -> Type[MouthExpressionConfig]:
-        return MouthExpressionConfig
-
-    @classmethod
-    def get_config_filename(cls) -> str:
-        return "mouth_sync.yaml"
+    @property
+    def config(self) -> MouthSyncConfig:
+        return config_manager.config.mouth_sync
 
     async def execute(self, loudness_queue: asyncio.Queue[Optional[float]]):
-        if not self.config.ENABLED:
-            return
-
         logger.info("启动嘴型同步...")
         try:
             while True:

@@ -4,59 +4,23 @@ from typing import Type
 
 from pydantic import Field
 
-from ..configs.base import ConfigBase
-from ..services.tweener import tweener
-from ..utils.logger import logger
-from .base_controller import CONFIG_DIR, IdleController
-
-
-class BodySwingConfig(ConfigBase):
-    """身体摇摆配置"""
-
-    ENABLED: bool = Field(default=True, description="是否启用身体摇摆效果")
-    X_MIN: float = Field(default=-10.0, description="身体左右摇摆最小位置（左侧）")
-    X_MAX: float = Field(default=15.0, description="身体左右摇摆最大位置（右侧）")
-    Z_MIN: float = Field(default=-10.0, description="上肢旋转最小位置（下方）")
-    Z_MAX: float = Field(default=15.0, description="上肢旋转最大位置（上方）")
-    MIN_DURATION: float = Field(default=2.0, description="摇摆最短持续时间（秒）")
-    MAX_DURATION: float = Field(default=8.0, description="摇摆最长持续时间（秒）")
-    X_PARAMETER: str = Field(
-        default="FaceAngleX",
-        description="身体左右摇摆控制的参数名",
-    )
-    Z_PARAMETER: str = Field(default="FaceAngleZ", description="上肢旋转控制的参数名")
-
-
-class EyeFollowConfig(ConfigBase):
-    """眼睛跟随配置"""
-
-    ENABLED: bool = Field(default=True, description="是否启用眼睛跟随身体摇摆")
-    X_MIN_RANGE: float = Field(default=-1.0, description="眼睛左右移动最小值（左侧）")
-    X_MAX_RANGE: float = Field(default=1.0, description="眼睛左右移动最大值（右侧）")
-    Y_MIN_RANGE: float = Field(default=-1.0, description="眼睛上下移动最小值（下方）")
-    Y_MAX_RANGE: float = Field(default=1.0, description="眼睛上下移动最大值（上方）")
-    LEFT_X_PARAMETER: str = Field(default="EyeLeftX", description="左眼水平移动参数")
-    RIGHT_X_PARAMETER: str = Field(default="EyeRightX", description="右眼水平移动参数")
-    LEFT_Y_PARAMETER: str = Field(default="EyeLeftY", description="左眼垂直移动参数")
-    RIGHT_Y_PARAMETER: str = Field(default="EyeRightY", description="右眼垂直移动参数")
+from ...services.tweener import tweener
+from ...utils.logger import logger
+from ..base_controller import IdleController
+from ..config import BodySwingConfig, EyeFollowConfig
+from ..config_manager import config_manager
 
 
 class BodySwingController(IdleController[BodySwingConfig]):
     """身体摇摆控制器, 通过缓动 FaceAngleX/Z 实现更自然的待机动作。"""
 
-    @classmethod
-    def get_config_class(cls) -> Type[BodySwingConfig]:
-        return BodySwingConfig
+    @property
+    def config(self) -> BodySwingConfig:
+        return config_manager.config.body_swing
 
-    @classmethod
-    def get_config_filename(cls) -> str:
-        return "body_swing.yaml"
-
-    def __init__(self):
-        super().__init__()
-        self.eye_config_path = CONFIG_DIR / "eye_follow.yaml"
-        self.eye_config = EyeFollowConfig.load_config(self.eye_config_path)
-        self.eye_config.dump_config(self.eye_config_path)
+    @property
+    def eye_config(self) -> EyeFollowConfig:
+        return config_manager.config.eye_follow
 
     async def run_cycle(self):
         """执行一次身体摇摆周期。"""

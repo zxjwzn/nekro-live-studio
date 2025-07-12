@@ -1,7 +1,7 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
 
-from ..clients.vtuber_studio.plugin import plugin
+from ..clients.vtube_studio.plugin import plugin
 from ..schemas.actions import (
     Animation,
     Execute,

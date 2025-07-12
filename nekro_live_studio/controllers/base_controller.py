@@ -2,20 +2,17 @@ import asyncio
 import contextlib
 from abc import ABC, abstractmethod
 from enum import Enum
-from pathlib import Path
-from typing import Generic, Optional, Type, TypeVar
+from typing import Generic, Optional, TypeVar
 
-from ..clients.vtuber_studio.exceptions import (
+from ..clients.vtube_studio.exceptions import (
     VTSConnectionError,
 )
-from ..clients.vtuber_studio.plugin import plugin
-from ..configs.base import ConfigBase
+from ..clients.vtube_studio.plugin import plugin
 from ..utils.logger import logger
+from .base_config import ControllerConfig
+from .config_manager import config_manager
 
-TConfig = TypeVar("TConfig", bound=ConfigBase)
-
-CONFIG_DIR = Path("data") / "configs"
-CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+TConfig = TypeVar("TConfig", bound=ControllerConfig)
 
 
 class AnimationType(Enum):
@@ -31,34 +28,21 @@ class BaseController(Generic[TConfig], ABC):
         self.plugin = plugin
         self._stop_event = asyncio.Event()
         self._task: Optional[asyncio.Task] = None
-        self.config: TConfig = self.get_config_class().load_config(
-            self.get_config_path(),
-        )
-        self.config.dump_config(self.get_config_path())
+
+    @property
+    @abstractmethod
+    def config(self) -> TConfig:
+        """获取此控制器的配置部分"""
+        raise NotImplementedError
 
     @classmethod
     @abstractmethod
     def get_animation_type(cls) -> AnimationType:
         """获取动画类型"""
 
-    @classmethod
-    @abstractmethod
-    def get_config_class(cls) -> Type[TConfig]:
-        """获取配置类"""
-
-    @classmethod
-    @abstractmethod
-    def get_config_filename(cls) -> str:
-        """获取配置文件名"""
-
-    @classmethod
-    def get_config_path(cls) -> Path:
-        """获取配置文件路径"""
-        return CONFIG_DIR / cls.get_config_filename()
-
     def save_config(self) -> None:
         """保存配置"""
-        self.config.dump_config(self.get_config_path())
+        config_manager.dump_config()
 
     @property
     def is_running(self) -> bool:
@@ -97,6 +81,9 @@ class BaseController(Generic[TConfig], ABC):
     async def _run(self,*args, **kwargs):
         """主运行逻辑，根据动画类型选择执行方式"""
         try:
+            if not self.config.ENABLED:
+                return
+
             if self.get_animation_type() == AnimationType.IDLE:
                 await self._run_loop()
             else:

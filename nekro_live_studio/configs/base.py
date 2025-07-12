@@ -1,10 +1,11 @@
 from pathlib import Path
 
 import yaml
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ConfigBase(BaseModel):
+
     @classmethod
     def load_config(cls, file_path: Path):
         """加载配置文件"""

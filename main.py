@@ -8,15 +8,20 @@ from starlette.staticfiles import StaticFiles
 
 from nekro_live_studio.api.websockets import router as websockets_router
 from nekro_live_studio.clients.live.bilibili_live import bilibili_live_client
-from nekro_live_studio.clients.vtuber_studio.plugin import plugin
+from nekro_live_studio.clients.vtube_studio.plugin import plugin
 from nekro_live_studio.configs.config import config, save_config
-from nekro_live_studio.controllers.blink_controller import BlinkController
-from nekro_live_studio.controllers.body_swing_controller import BodySwingController
-from nekro_live_studio.controllers.breathing_controller import BreathingController
-from nekro_live_studio.controllers.mouth_expression_controller import (
+from nekro_live_studio.controllers.config_manager import config_manager
+from nekro_live_studio.controllers.controllers.blink_controller import BlinkController
+from nekro_live_studio.controllers.controllers.body_swing_controller import (
+    BodySwingController,
+)
+from nekro_live_studio.controllers.controllers.breathing_controller import (
+    BreathingController,
+)
+from nekro_live_studio.controllers.controllers.mouth_expression_controller import (
     MouthExpressionController,
 )
-from nekro_live_studio.controllers.mouth_sync import MouthSyncController
+from nekro_live_studio.controllers.controllers.mouth_sync import MouthSyncController
 from nekro_live_studio.services.controller_manager import controller_manager
 from nekro_live_studio.services.tweener import tweener
 from nekro_live_studio.utils.logger import logger
@@ -31,11 +36,14 @@ async def lifespan(app: FastAPI):
     if not await plugin.connect_and_authenticate(config.PLUGIN.AUTHENTICATION_TOKEN):
         logger.warning("连接 VTS 失败, 请检查 VTube Studio 是否已开启并加载API插件 或 检查认证token是否正确")
         sys.exit(1)
+
+    await config_manager.load_config_for_current_model()
+
     if plugin.client.authentication_token:
         config.PLUGIN.AUTHENTICATION_TOKEN = plugin.client.authentication_token
         save_config()
     # 启动 Tweener
-    tweener.start(plugin)
+    tweener.start()
 
     controller_manager.register_controller(BlinkController())
     controller_manager.register_controller(BodySwingController())

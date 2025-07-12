@@ -3,7 +3,7 @@ import contextlib
 import random
 from typing import Dict, Optional, Tuple
 
-from ..clients.vtuber_studio.plugin import plugin
+from ..clients.vtube_studio.plugin import VTSPlugin, plugin
 from ..utils.easing import Easing
 from ..utils.logger import logger
 
@@ -21,12 +21,13 @@ class Tweener:
         self._keep_alive_task: Optional[asyncio.Task] = None
         self._keep_alive_interval = keep_alive_interval
 
-    def start(self, plugin):
+    def start(self, plugin: Optional[VTSPlugin] = None):
         """启动参数保活循环。"""
         if self._keep_alive_task and not self._keep_alive_task.done():
             logger.warning("Tweener 保活任务已在运行中.")
             return
-        self._plugin = plugin
+        if plugin:
+            self._plugin = plugin
         self._keep_alive_task = asyncio.create_task(self._keep_alive_loop())
         logger.info("Tweener 参数保活任务已启动.")
 
