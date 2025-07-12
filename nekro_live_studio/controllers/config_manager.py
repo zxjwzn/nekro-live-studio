@@ -1,6 +1,6 @@
 import contextlib
 from pathlib import Path
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from ..clients.vtube_studio.plugin import plugin
 from ..utils.logger import logger
@@ -27,7 +27,6 @@ class ConfigManager:
         try:
             with contextlib.suppress(Exception):
                 model_info = await plugin.get_current_model()
-                logger.info(f"model_info: {model_info}")
                 if model_info and model_info.get("modelLoaded"):
                     self.current_model_name = model_info["modelName"]
                     logger.info(f"检测到模型 '{model_info['modelName']}' (ID: {model_info['modelID']})，将加载对应配置。")
@@ -49,6 +48,54 @@ class ConfigManager:
             self.config = ControllersConfig()
 
         self.dump_config()
+
+    async def on_model_loaded_event(self, event_data: Dict[str, Any]) -> None:
+        """处理模型加载/卸载事件"""
+        event_data = event_data.get("data",{})
+        model_loaded = event_data.get("modelLoaded", False)
+        model_name = event_data.get("modelName")
+        model_id = event_data.get("modelID")
+        # 导入 controller_manager 以重新启动控制器
+        from ..services.controller_manager import controller_manager
+        
+        if model_loaded:
+            # 模型加载
+            if model_name:
+                logger.info(f"检测到模型切换事件：'{model_name}' (ID: {model_id}) 已加载，正在加载对应配置...")
+                self.current_model_name = model_name
+                config_path = self.get_config_path(model_name)
+                
+                if config_path.exists():
+                    logger.info(f"正在从 {config_path} 加载配置...")
+                    self.config = ControllersConfig.load_config(config_path)
+                else:
+                    logger.info(f"未找到配置文件 {config_path}，将创建并使用默认配置。")
+                    self.config = ControllersConfig()
+                
+                self.dump_config()
+                logger.info(f"模型 '{model_name}' 的配置已成功加载。")
+                
+            else:
+                logger.warning("收到模型加载事件，但未包含模型名称信息。")
+        else:
+            # 模型卸载
+            if model_name:
+                logger.info(f"检测到模型卸载事件：'{model_name}' (ID: {model_id}) 已卸载，切换到默认配置...")
+            else:
+                logger.info("检测到模型卸载事件，切换到默认配置...")
+            
+            self.current_model_name = None
+            config_path = self.get_config_path("default")
+            
+            if config_path.exists():
+                logger.info(f"正在从 {config_path} 加载默认配置...")
+                self.config = ControllersConfig.load_config(config_path)
+            else:
+                logger.info(f"未找到默认配置文件 {config_path}，将创建并使用默认配置。")
+                self.config = ControllersConfig()
+            
+            self.dump_config()
+            logger.info("已切换到默认配置。")
 
     def dump_config(self) -> None:
         """保存当前配置到文件"""

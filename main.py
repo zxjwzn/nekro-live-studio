@@ -11,24 +11,13 @@ from nekro_live_studio.clients.live.bilibili_live import bilibili_live_client
 from nekro_live_studio.clients.vtube_studio.plugin import plugin
 from nekro_live_studio.configs.config import config, save_config
 from nekro_live_studio.controllers.config_manager import config_manager
-from nekro_live_studio.controllers.controllers.blink_controller import BlinkController
-from nekro_live_studio.controllers.controllers.body_swing_controller import (
-    BodySwingController,
-)
-from nekro_live_studio.controllers.controllers.breathing_controller import (
-    BreathingController,
-)
-from nekro_live_studio.controllers.controllers.mouth_expression_controller import (
-    MouthExpressionController,
-)
-from nekro_live_studio.controllers.controllers.mouth_sync import MouthSyncController
 from nekro_live_studio.services.controller_manager import controller_manager
 from nekro_live_studio.services.tweener import tweener
 from nekro_live_studio.utils.logger import logger
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI):  # noqa: ARG001
     # Startup
     logger.info("应用启动中...")
     # 连接 VTS
@@ -42,14 +31,24 @@ async def lifespan(app: FastAPI):
     if plugin.client.authentication_token:
         config.PLUGIN.AUTHENTICATION_TOKEN = plugin.client.authentication_token
         save_config()
+    
+    # 注册模型切换事件处理器
+    logger.info("注册模型切换事件处理器...")
+    plugin.register_event_handler("ModelLoadedEvent", config_manager.on_model_loaded_event)
+    
+    # 订阅模型切换事件
+    try:
+        await plugin.subscribe_event("ModelLoadedEvent")
+        logger.info("已成功订阅模型切换事件，将自动加载对应模型的配置。")
+    except Exception as e:
+        logger.error(f"订阅模型切换事件失败: {e}", exc_info=True)
+        logger.warning("模型切换时将不会自动加载配置，但程序会继续运行。")
+    
     # 启动 Tweener
     tweener.start()
 
-    controller_manager.register_controller(BlinkController())
-    controller_manager.register_controller(BodySwingController())
-    controller_manager.register_controller(BreathingController())
-    controller_manager.register_controller(MouthExpressionController())
-    controller_manager.register_controller(MouthSyncController())
+    # 自动搜索和注册所有控制器
+    controller_manager.auto_discover_and_register_controllers()
 
     asyncio.create_task(controller_manager.start_all_idle())
     asyncio.create_task(bilibili_live_client.start())
@@ -64,6 +63,14 @@ async def lifespan(app: FastAPI):
     await controller_manager.stop_all_idle()
     tweener.release_all()
     await tweener.stop()
+    
+    # 取消订阅事件
+    try:
+        await plugin.unsubscribe_event("ModelLoadedEvent")
+        logger.info("已取消订阅模型切换事件。")
+    except Exception as e:
+        logger.error(f"取消订阅模型切换事件失败: {e}", exc_info=True)
+    
     await plugin.disconnect()
     logger.info("应用已关闭")
 

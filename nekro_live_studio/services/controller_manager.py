@@ -1,6 +1,11 @@
 import asyncio
+
+# 新增导入用于自动搜索和注册
+import importlib
 import inspect
+import pkgutil
 import re
+from pathlib import Path
 from typing import Dict, List, Optional
 
 from ..controllers.base_controller import AnimationType, BaseController
@@ -23,10 +28,57 @@ class AnimationManager:
         if controller not in self.oneshot_controllers:
             if animation_type == AnimationType.IDLE:
                 self.idle_controllers.append(controller)
-                logger.info(f"已注册空闲动画控制器: {controller.__class__.__name__}")
+                #logger.info(f"已注册空闲动画控制器: {controller.__class__.__name__}")
             elif animation_type == AnimationType.ONESHOT:
                 self.oneshot_controllers.append(controller)
-                logger.info(f"已注册一次性动画控制器: {controller.__class__.__name__}")
+                #logger.info(f"已注册一次性动画控制器: {controller.__class__.__name__}")
+
+    def auto_discover_and_register_controllers(self):
+        """自动搜索并注册所有控制器"""
+        logger.info("开始自动搜索和注册控制器...")
+        
+        # 获取控制器模块的路径
+        controllers_package = "nekro_live_studio.controllers.controllers"
+        controllers_path = Path(__file__).parent.parent / "controllers" / "controllers"
+        
+        if not controllers_path.exists():
+            logger.error(f"控制器目录不存在: {controllers_path}")
+            return
+        
+        registered_count = 0
+        
+        # 遍历控制器目录中的所有 Python 文件
+        for file_path in controllers_path.glob("*.py"):
+            if file_path.name.startswith("__") or file_path.name.startswith("test_"):
+                continue
+                
+            module_name = file_path.stem
+            full_module_name = f"{controllers_package}.{module_name}"
+            
+            try:
+                # 动态导入模块
+                module = importlib.import_module(full_module_name)
+                
+                # 遍历模块中的所有类
+                for name, obj in inspect.getmembers(module, inspect.isclass):
+                    # 检查是否是 BaseController 的子类（但不是 BaseController 本身）
+                    if (obj != BaseController and 
+                        issubclass(obj, BaseController) and 
+                        obj.__module__ == full_module_name):
+                        
+                        try:
+                            # 实例化控制器并注册
+                            controller_instance = obj()
+                            self.register_controller(controller_instance)
+                            registered_count += 1
+                            logger.info(f"自动注册控制器: {name} (来自 {module_name})")
+                        except Exception as e:
+                            logger.error(f"实例化控制器 {name} 时出错: {e}", exc_info=True)
+                            
+            except Exception as e:
+                logger.error(f"导入模块 {full_module_name} 时出错: {e}", exc_info=True)
+        
+        logger.info(f"自动搜索和注册完成，共注册了 {registered_count} 个控制器")
 
     def get_controller_by_name(self, controller_name: str) -> Optional[BaseController]:
         """通过控制器名获取控制器实例

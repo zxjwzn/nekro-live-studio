@@ -20,7 +20,7 @@ async def atee(iterable: AsyncIterator[T], n: int = 2) -> List[AsyncIterator[T]]
                     await q.put(item)
         finally:
             for q in queues:
-                await q.put(None)  # Sentinel value to signal end of iteration
+                await q.put(None) 
 
     asyncio.create_task(forward())
 
