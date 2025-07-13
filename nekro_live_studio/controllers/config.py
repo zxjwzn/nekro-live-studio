@@ -1,4 +1,6 @@
-from pydantic import Field
+from typing import List
+
+from pydantic import Field, BaseModel
 
 from .base_config import ControllerConfig
 
@@ -90,6 +92,21 @@ class MouthSyncConfig(ControllerConfig):
     LOUDNESS_THRESHOLD: float = Field(default=-30, description="响度阈值(LUFS)")
 
 
+class ExpressionState(BaseModel):
+    """表情状态"""
+
+    name: str = Field(description="表情名称")
+    file: str = Field(description="表情文件名")
+    active: bool = Field(default=False, description="是否默认激活此表情")
+
+
+class ExpressionApplyConfig(ControllerConfig):
+    """表情应用配置"""
+
+    ENABLED: bool = Field(default=True, description="是否启用表情自动应用")
+    expressions: List[ExpressionState] = Field(default_factory=list, title="表情列表")
+
+
 class ControllersConfig(ControllerConfig):
     """所有控制器的配置"""
 
@@ -98,4 +115,5 @@ class ControllersConfig(ControllerConfig):
     body_swing: BodySwingConfig = Field(default_factory=BodySwingConfig, title="身体摇摆")
     eye_follow: EyeFollowConfig = Field(default_factory=EyeFollowConfig, title="眼睛跟随")
     mouth_expression: MouthExpressionConfig = Field(default_factory=MouthExpressionConfig, title="嘴部表情")
-    mouth_sync: MouthSyncConfig = Field(default_factory=MouthSyncConfig, title="嘴型同步") 
+    mouth_sync: MouthSyncConfig = Field(default_factory=MouthSyncConfig, title="嘴型同步")
+    expression_apply: ExpressionApplyConfig = Field(default_factory=ExpressionApplyConfig, title="表情应用")

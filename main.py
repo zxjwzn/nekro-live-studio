@@ -20,6 +20,10 @@ from nekro_live_studio.utils.logger import logger
 async def lifespan(app: FastAPI):  # noqa: ARG001
     # Startup
     logger.info("应用启动中...")
+
+    # 自动搜索和注册所有控制器
+    controller_manager.auto_discover_and_register_controllers()
+    
     # 连接 VTS
     logger.info(f"正在连接到 VTube Studio, 地址: {config.PLUGIN.VTS_ENDPOINT} 请在VTube Studio中点击认证")
     if not await plugin.connect_and_authenticate(config.PLUGIN.AUTHENTICATION_TOKEN):
@@ -46,9 +50,6 @@ async def lifespan(app: FastAPI):  # noqa: ARG001
     
     # 启动 Tweener
     tweener.start()
-
-    # 自动搜索和注册所有控制器
-    controller_manager.auto_discover_and_register_controllers()
 
     asyncio.create_task(controller_manager.start_all_idle())
     asyncio.create_task(bilibili_live_client.start())

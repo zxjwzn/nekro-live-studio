@@ -4,7 +4,7 @@ from typing import Any, Dict, Optional
 
 from ..clients.vtube_studio.plugin import plugin
 from ..utils.logger import logger
-from .config import ControllersConfig
+from .config import ControllersConfig, ExpressionState
 
 CONFIG_DIR = Path("data") / "configs"
 CONFIG_DIR.mkdir(parents=True, exist_ok=True)
@@ -21,6 +21,41 @@ class ConfigManager:
         """根据模型名称获取配置文件路径"""
         filename = f"{model_name}.yaml" if model_name else "default.yaml"
         return CONFIG_DIR / filename
+
+    async def sync_expressions(self):
+        """同步当前模型的表情列表到配置文件"""
+        if not self.current_model_name:
+            return  # 没有加载模型
+
+        if not self.config.expression_apply.ENABLED:
+            logger.debug("表情同步功能已禁用。")
+            return
+
+        try:
+            expressions_from_vts = await plugin.get_expressions()
+            if not expressions_from_vts:
+                return
+
+            config_expressions = self.config.expression_apply.expressions
+            config_expression_files = {expr.file for expr in config_expressions}
+
+            new_expressions_added = False
+            for vts_expr in expressions_from_vts:
+                if vts_expr.get("file") not in config_expression_files:
+                    logger.info(f"发现新表情 '{vts_expr['name']}'，已添加到配置文件中。")
+                    new_expression = ExpressionState(
+                        name=vts_expr["name"],
+                        file=vts_expr["file"],
+                        active=False,
+                    )
+                    config_expressions.append(new_expression)
+                    new_expressions_added = True
+
+            if new_expressions_added:
+                self.dump_config()
+
+        except Exception as e:
+            logger.error(f"同步模型 '{self.current_model_name}' 的表情时出错: {e}", exc_info=True)
 
     async def load_config_for_current_model(self) -> None:
         """加载当前 VTS 中加载的模型对应的配置"""
@@ -47,7 +82,12 @@ class ConfigManager:
             logger.info(f"未找到配置文件 {config_path}，将创建并使用默认配置。")
             self.config = ControllersConfig()
 
+        await self.sync_expressions()
         self.dump_config()
+
+        # 启动时应用一次表情
+        from ..services.controller_manager import controller_manager
+        await controller_manager.execute_oneshot("ExpressionApplyController")
 
     async def on_model_loaded_event(self, event_data: Dict[str, Any]) -> None:
         """处理模型加载/卸载事件"""
@@ -71,10 +111,14 @@ class ConfigManager:
                 else:
                     logger.info(f"未找到配置文件 {config_path}，将创建并使用默认配置。")
                     self.config = ControllersConfig()
-                
+
+                await self.sync_expressions()
                 self.dump_config()
                 logger.info(f"模型 '{model_name}' 的配置已成功加载。")
-                
+
+                # 应用表情并启动挂机动画
+                await controller_manager.execute_oneshot("ExpressionApplyController")
+                await controller_manager.start_all_idle()
             else:
                 logger.warning("收到模型加载事件，但未包含模型名称信息。")
         else:
@@ -95,6 +139,7 @@ class ConfigManager:
                 self.config = ControllersConfig()
             
             self.dump_config()
+            await controller_manager.stop_all_idle()
             logger.info("已切换到默认配置。")
 
     def dump_config(self) -> None:
