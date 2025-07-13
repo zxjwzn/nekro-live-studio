@@ -69,9 +69,9 @@ class ConfigManager:
                     self.current_model_name = None
                     logger.info("未检测到加载的模型。")
 
-        except Exception as e:
+        except Exception:
             self.current_model_name = None
-            logger.error(f"获取当前模型信息时出错: {e}", exc_info=True)
+            logger.info("获取模型信息时出错或VTS未连接，将使用空配置。")
 
         if self.current_model_name:
             config_path = self.get_config_path(self.current_model_name)
