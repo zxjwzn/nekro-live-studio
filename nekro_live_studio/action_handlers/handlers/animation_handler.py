@@ -1,11 +1,11 @@
 import asyncio
 from typing import Optional, cast
 
-from ..schemas.actions import Action, Animation
-from ..services.tweener import tweener
-from ..utils.easing import Easing
-from ..utils.logger import logger
-from .base import ActionHandler
+from ...schemas.actions import Action, Animation
+from ...services.tweener import tweener
+from ...utils.easing import Easing
+from ...utils.logger import logger
+from ..base import ActionHandler
 
 
 class AnimationHandler(ActionHandler):

@@ -11,7 +11,7 @@ from bilibili_api.exceptions.LiveException import LiveException
 from bilibili_api.login_v2 import QrCodeLogin, QrCodeLoginEvents
 
 from ...configs.config import config, save_config
-from ...schemas.bilibili_live import Danmaku
+from ...schemas.live import Danmaku
 from ...services.websocket_manager import manager
 from ...utils.logger import logger
 

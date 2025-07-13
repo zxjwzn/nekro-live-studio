@@ -2,11 +2,11 @@ import asyncio
 from collections import deque
 from typing import Deque, Optional, cast
 
-from ..action_handlers.animation_handler import AnimationHandler
 from ..action_handlers.base import ActionHandler
-from ..action_handlers.expression_handler import ExpressionHandler
-from ..action_handlers.say_handler import SayHandler
-from ..action_handlers.sound_play_handler import SoundPlayHandler
+from ..action_handlers.handlers.animation_handler import AnimationHandler
+from ..action_handlers.handlers.expression_handler import ExpressionHandler
+from ..action_handlers.handlers.say_handler import SayHandler
+from ..action_handlers.handlers.sound_play_handler import SoundPlayHandler
 from ..schemas.actions import Action, Animation, Expression, Say, SoundPlay
 from ..utils.logger import logger
 

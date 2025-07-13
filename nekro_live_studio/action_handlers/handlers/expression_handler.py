@@ -1,9 +1,9 @@
 import asyncio
 from typing import Optional, cast
 
-from ..clients.vtube_studio.plugin import plugin
-from ..schemas.actions import Action, Expression
-from .base import ActionHandler
+from ...clients.vtube_studio.plugin import plugin
+from ...schemas.actions import Action, Expression
+from ..base import ActionHandler
 
 
 class ExpressionHandler(ActionHandler):

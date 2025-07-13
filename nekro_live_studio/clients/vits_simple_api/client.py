@@ -65,7 +65,7 @@ class VITSSimpleAPIClient:
             "streaming": "true",
         }
 
-        request_url = f"{self.base_url}voice/{model_name}"
+        request_url = f"{self.base_url}/voice/{model_name}"
         try:
             async with (
                 httpx.AsyncClient() as client,
