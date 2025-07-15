@@ -32,6 +32,7 @@ from ....utils.logger import logger
 from .utils import NCMResponseError, ncm_request, run_sync
 
 
+# 代码借鉴自 https://github.com/lgc-NB2Dev/nonebot-plugin-multincm
 class NeteaseCloudMusicClient:
     """网易云音乐客户端, 用于登录和获取音乐信息"""
 
@@ -317,6 +318,11 @@ class NeteaseCloudMusicClient:
             logger.exception("网易云音乐登录时发生未知错误")
         finally:
             self._running = False
+
+    async def stop(self):
+        """停止网易云音乐客户端"""
+        self._running = False   
+        logger.info("网易云音乐客户端已停止")
 
 
 netease_cloud_music_client = NeteaseCloudMusicClient()

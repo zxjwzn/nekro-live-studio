@@ -28,7 +28,6 @@ async def lifespan(app: FastAPI):  # noqa: ARG001
     logger.info("应用启动中...")
 
     await netease_cloud_music_client.start()
-    await netease_cloud_music_client.download_song(2619664909, "where we began")
     await bilibili_live_client.start()
 
     # 连接 VTS
@@ -48,7 +47,7 @@ async def lifespan(app: FastAPI):  # noqa: ARG001
     # 注册模型切换事件处理器
     logger.info("注册模型切换事件处理器...")
     plugin.register_event_handler("ModelLoadedEvent", config_manager.on_model_loaded_event)
-    
+
     # 订阅模型切换事件
     try:
         await plugin.subscribe_event("ModelLoadedEvent")
@@ -56,13 +55,15 @@ async def lifespan(app: FastAPI):  # noqa: ARG001
     except Exception as e:
         logger.error(f"订阅模型切换事件失败: {e}", exc_info=True)
         logger.warning("模型切换时将不会自动加载配置，但程序会继续运行。")
-    
+
     # 启动 Tweener
     tweener.start()
     await controller_manager.start_all_idle()
 
     logger.info("应用启动完成")
-    logger.info(f"字幕页面位于 http://{config.API.HOST}:{config.API.PORT}/static/frontend/index.html 请在浏览器或是OBS中使用浏览器源打开")
+    logger.info(
+        f"字幕页面位于 http://{config.API.HOST}:{config.API.PORT}/static/frontend/index.html 请在浏览器或是OBS中使用浏览器源打开"
+    )
     logger.info(f"控制端 WebSocket 地址为 ws://{config.API.HOST}:{config.API.PORT} 请在Nekro-Agent的webui界面填写")
     yield
 
@@ -82,19 +83,22 @@ async def lifespan(app: FastAPI):  # noqa: ARG001
             except Exception as e:
                 logger.error(f"清理临时文件失败 {file_path}. 原因: {e}")
 
-    save_config()
+    await netease_cloud_music_client.stop()
+
+    await bilibili_live_client.stop()
+
     await controller_manager.stop_all_idle()
     tweener.release_all()
     await tweener.stop()
-    
     # 取消订阅事件
     try:
         await plugin.unsubscribe_event("ModelLoadedEvent")
         logger.info("已取消订阅模型切换事件。")
     except Exception as e:
         logger.error(f"取消订阅模型切换事件失败: {e}", exc_info=True)
-    
+
     await plugin.disconnect()
+    save_config()
     logger.info("应用已关闭")
 
 
