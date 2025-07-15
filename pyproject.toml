@@ -1,5 +1,5 @@
 [project]
-name = "vts-face-control-plugin"
+name = "nekro-live-studio"
 version = "0.1.0"
 description = ""
 authors = [
@@ -27,7 +27,9 @@ dependencies = [
     "loguru (>=0.7.3,<0.8.0)",
     "pydub (>=0.25.1,<0.26.0)",
     "simpleeval (>=1.0.3,<2.0.0)",
-    "json5 (>=0.12.0,<0.13.0)"
+    "json5 (>=0.12.0,<0.13.0)",
+    "pyncm (>=1.7.1,<2.0.0)",
+    "httpx (>=0.27.0,<0.28.0)",
 ]
 
 

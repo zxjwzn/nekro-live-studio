@@ -10,10 +10,10 @@ from bilibili_api import Credential, live, sync
 from bilibili_api.exceptions.LiveException import LiveException
 from bilibili_api.login_v2 import QrCodeLogin, QrCodeLoginEvents
 
-from ...configs.config import config, save_config
-from ...schemas.live import Danmaku
-from ...services.websocket_manager import manager
-from ...utils.logger import logger
+from ....configs.config import config, save_config
+from ....schemas.live import Danmaku
+from ....services.websocket_manager import manager
+from ....utils.logger import logger
 
 
 class BilibiliLiveClient:
@@ -29,37 +29,6 @@ class BilibiliLiveClient:
         self._danmaku_queue: list[Danmaku] = []
         self._first_message_time: float = 0.0
         self._check_timer_task: Optional[asyncio.Task] = None
-
-        if not self.room_id or self.room_id == "0":
-            logger.warning("未配置B站直播间ID，直播监听功能未启用")
-            return
-
-        try:
-            self.credential = sync(self._login())
-            if self.credential:
-                cookies = self.credential.get_cookies()
-                config.BILIBILI_LIVE.SESSDATA = cookies["SESSDATA"]
-                config.BILIBILI_LIVE.BUVID3 = cookies["buvid3"]
-                config.BILIBILI_LIVE.BILI_JCT = cookies["bili_jct"]
-                config.BILIBILI_LIVE.AC_TIME_VALUE = cookies["ac_time_value"]
-                save_config()
-        except Exception:
-            logger.exception("B站登录过程中发生未知错误")
-            self.credential = None
-
-        if not self.credential:
-            logger.error("B站登录失败, 直播监听功能将不可用。")
-            return
-
-        logger.info("B站登录成功")
-
-        self.live_danmaku = live.LiveDanmaku(
-            room_display_id=int(self.room_id),
-            credential=self.credential,
-            debug=config.LOG_LEVEL == "DEBUG",
-        )
-        self.live_danmaku.logger = logger  # type: ignore
-        self._register_events()
 
     async def _login(self) -> Optional[Credential]:
         """尝试使用缓存凭据登录, 如果失败则尝试二维码登录"""
@@ -345,11 +314,41 @@ class BilibiliLiveClient:
                 await asyncio.sleep(5)
 
     async def start(self):
-        if not self.live_danmaku:
-            return
         if self._running:
             logger.warning("B站直播客户端已在运行中")
             return
+
+        if not self.room_id or self.room_id == "0":
+            logger.warning("未配置B站直播间ID，直播监听功能未启用")
+            return
+
+        # 登录B站
+        try:
+            self.credential = await self._login()
+            if self.credential:
+                # 保存最新的凭据信息
+                cookies = self.credential.get_cookies()
+                config.BILIBILI_LIVE.SESSDATA = cookies["SESSDATA"]
+                config.BILIBILI_LIVE.BUVID3 = cookies["buvid3"]
+                config.BILIBILI_LIVE.BILI_JCT = cookies["bili_jct"]
+                config.BILIBILI_LIVE.AC_TIME_VALUE = cookies.get("ac_time_value", "")
+                logger.info("B站登录成功")
+            else:
+                logger.error("B站登录失败, 直播监听功能将不可用。")
+                return
+        except Exception:
+            logger.exception("B站登录过程中发生未知错误")
+            self.credential = None
+            return
+
+        # 创建 LiveDanmaku 实例并注册事件
+        self.live_danmaku = live.LiveDanmaku(
+            room_display_id=int(self.room_id),
+            credential=self.credential,
+            debug=config.LOG_LEVEL == "DEBUG",
+        )
+        self.live_danmaku.logger = logger  # type: ignore
+        self._register_events()
 
         self._running = True
         self._task = asyncio.create_task(self._connection_loop())
@@ -360,18 +359,19 @@ class BilibiliLiveClient:
             return
 
         self._running = False
-        
+
         # 清理定时器任务
         if self._check_timer_task:
             self._check_timer_task.cancel()
             self._check_timer_task = None
-        
+
         # 如果队列中还有弹幕，触发最后一次转发
         if self._danmaku_queue:
             await self._trigger_and_flush()
-        
+
         if self.live_danmaku:
             await self.live_danmaku.disconnect()
+            self.live_danmaku = None
 
         if self._task:
             self._task.cancel()

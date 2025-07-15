@@ -75,6 +75,17 @@ class BilibiliConfigs(ConfigBase):
     AC_TIME_VALUE: str = Field(default="", description="Bilibili直播 ac_time_value 可不填")
 
 
+class NeteaseCloudMusicConfig(ConfigBase):
+    """网易云音乐配置"""
+
+    ENABLED: bool = Field(default=False, description="是否启用网易云音乐")
+    PHONE: str = Field(default="", description="手机号")
+    PASSWORD: str = Field(default="", description="密码")
+    EMAIL: str = Field(default="", description="邮箱")
+    ANONYMOUS: bool = Field(default=False, description="是否使用游客登录")
+    SESSION_DATA: str = Field(default="", description="网易云音乐 session 缓存, 请勿手动修改")
+    BITRATE: int = Field(default=320000, description="下载音质比特率, 96k SQ 320k HQ 320k+ Lossless/SQ")
+
 class FFmpegConfig(ConfigBase):
     """FFmpeg 可执行路径配置"""
 
@@ -94,6 +105,7 @@ class VTSModelControlConfig(ConfigBase):
     API: ApiConfig = Field(default_factory=ApiConfig)
     BILIBILI_LIVE: BilibiliConfigs = Field(default_factory=BilibiliConfigs)
     TTS: VITSSimpleAPIConfig = Field(default_factory=VITSSimpleAPIConfig)
+    NCM: NeteaseCloudMusicConfig = Field(default_factory=NeteaseCloudMusicConfig)
     FFMPEG: FFmpegConfig = Field(default_factory=FFmpegConfig)
 
 

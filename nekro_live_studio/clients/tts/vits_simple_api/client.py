@@ -4,9 +4,9 @@ from typing import AsyncIterator, Literal, Optional
 
 import httpx
 
-from ...configs.config import config
-from ...services.ffmpeg import play_audio_stream_with_ffplay
-from ...utils.logger import logger
+from ....configs.config import config
+from ....services.ffmpeg import play_audio_stream_with_ffplay
+from ....utils.logger import logger
 from .exceptions import VITSSimpleAPIError
 
 
