@@ -116,13 +116,15 @@ class NeteaseCloudMusicClient:
                         last_status = code
                         extra_tip = f" (用户：{e.data.get('nickname')})" if code == 802 else ""
                         logger.info(f"当前二维码状态：[{code}] {e.message}{extra_tip}")
-                    if code == 800:
+                    elif code == 800:
                         logger.warning("二维码已过期")
                         return False
-                    if code == 803:
+                    elif code == 803:
                         logger.info("授权成功")
                         return True
-                    if code and (code >= 1000):
+                    elif code and (code >= 1000):
+                        raise
+                    else:
                         raise
             logger.error("二维码登录超时")
             return False
